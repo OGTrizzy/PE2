@@ -1,6 +1,6 @@
 export const API_BASE = "https://v2.api.noroff.dev";
 export const API_HOLIDAZE = `${API_BASE}/holidaze`;
-export const API_AUTH = `${API_BASE}/auth`;
+export const API_AUTH = `${API_HOLIDAZE}/auth`;
 export const API_AUTH_REGISTER = `${API_AUTH}/register`;
 export const API_AUTH_LOGIN = `${API_AUTH}/login`;
 export const API_AUTH_KEY = `${API_AUTH}/create-api-key`;

@@ -1,14 +1,25 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { fetchVenueById } from "../api/venues";
+import { createBooking } from "../api/auth";
 
 function VenuePage() {
   const { id } = useParams();
   const [venue, setVenue] = useState(null);
   const [loading, setLoading] = useState(true);
   const [calendarDates, setCalendarDates] = useState([]);
+  const [selectedDates, setSelectedDates] = useState({
+    dateFrom: null,
+    dateTo: null,
+  });
+  const [bookingMessage, setBookingMessage] = useState(null);
+  const [bookingError, setBookingError] = useState(null);
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
+    const storedUser = JSON.parse(localStorage.getItem("user"));
+    setUser(storedUser);
+
     const getVenue = async () => {
       const data = await fetchVenueById(id);
       setVenue(data);
@@ -22,8 +33,8 @@ function VenuePage() {
 
   const generateCalendar = (bookings) => {
     const today = new Date();
-    const startDate = new Date(today.getFullYear(), today.getMonth(), 1); // Første dag i inneværende måned
-    const endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0); // Siste dag i inneværende måned
+    const startDate = new Date(today.getFullYear(), today.getMonth(), 1); // start date for calender
+    const endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0); //end date for calender
     const dates = [];
 
     for (
@@ -49,6 +60,71 @@ function VenuePage() {
     }
 
     setCalendarDates(dates);
+  };
+
+  const handleDateClick = (dateString, isBooked) => {
+    if (isBooked) {
+      setBookingError("This date is already booked.");
+      return;
+    }
+
+    if (!selectedDates.dateFrom) {
+      setSelectedDates({ dateFrom: dateString, dateTo: null });
+      setBookingError(null);
+    } else if (!selectedDates.dateTo) {
+      const fromDate = new Date(selectedDates.dateFrom);
+      const toDate = new Date(dateString);
+      if (toDate < fromDate) {
+        setBookingError("End date cannot be before start date.");
+        return;
+      }
+
+      const datesInRange = calendarDates.filter((d) => {
+        const currentDate = new Date(d.dateString);
+        return currentDate >= fromDate && currentDate <= toDate;
+      });
+      const hasBookedDate = datesInRange.some((d) => d.isBooked);
+      if (hasBookedDate) {
+        setBookingError("Some dates in the selected range are already booked.");
+        setSelectedDates({ dateFrom: null, dateTo: null });
+        return;
+      }
+
+      setSelectedDates({ ...selectedDates, dateTo: dateString });
+      setBookingError(null);
+    } else {
+      setSelectedDates({ dateFrom: dateString, dateTo: null });
+      setBookingError(null);
+    }
+  };
+
+  const handleBooking = async () => {
+    if (!selectedDates.dateFrom || !selectedDates.dateTo) {
+      setBookingError("Please select both a start and end date.");
+      return;
+    }
+
+    const bookingData = {
+      dateFrom: selectedDates.dateFrom,
+      dateTo: selectedDates.dateTo,
+      guests: 1,
+      venueId: id,
+    };
+
+    const result = await createBooking(bookingData);
+    if (result.success) {
+      setBookingMessage("Booking successful!");
+      setSelectedDates({ dateFrom: null, dateTo: null });
+      const updatedVenue = await fetchVenueById(id);
+      setVenue(updatedVenue);
+      if (updatedVenue && updatedVenue.bookings) {
+        generateCalendar(updatedVenue.bookings);
+      }
+    } else {
+      setBookingError(
+        result.error || "Failed to create booking. Please try again."
+      );
+    }
   };
 
   if (loading) {
@@ -140,6 +216,19 @@ function VenuePage() {
                 Register
               </Link>
             </li>
+            <li>
+              <Link
+                to="/create-venue"
+                style={{
+                  color: "#4A90E2",
+                  fontFamily: "Poppins, sans-serif",
+                  fontWeight: "600",
+                  textDecoration: "none",
+                }}
+              >
+                Create Venue
+              </Link>
+            </li>
           </ul>
         </nav>
       </header>
@@ -201,14 +290,21 @@ function VenuePage() {
                 {calendarDates.map((dateObj) => (
                   <div key={dateObj.dateString} className="col text-center">
                     <div
+                      onClick={() =>
+                        handleDateClick(dateObj.dateString, dateObj.isBooked)
+                      }
                       className={`p-2 rounded ${
                         dateObj.isBooked
                           ? "bg-danger text-white"
+                          : selectedDates.dateFrom === dateObj.dateString ||
+                            selectedDates.dateTo === dateObj.dateString
+                          ? "bg-primary text-white"
                           : "bg-success text-white"
                       }`}
                       style={{
                         fontFamily: "Open Sans, sans-serif",
                         fontSize: "0.875rem",
+                        cursor: "pointer",
                       }}
                     >
                       {dateObj.date.getDate()}
@@ -216,9 +312,49 @@ function VenuePage() {
                   </div>
                 ))}
               </div>
+              {selectedDates.dateFrom && (
+                <p
+                  className="mt-2"
+                  style={{
+                    fontFamily: "Open Sans, sans-serif",
+                    color: "#333333",
+                  }}
+                >
+                  Start Date: {selectedDates.dateFrom}
+                </p>
+              )}
+              {selectedDates.dateTo && (
+                <p
+                  style={{
+                    fontFamily: "Open Sans, sans-serif",
+                    color: "#333333",
+                  }}
+                >
+                  End Date: {selectedDates.dateTo}
+                </p>
+              )}
             </div>
+            {bookingMessage && (
+              <div
+                className="alert alert-success"
+                role="alert"
+                style={{ fontFamily: "Open Sans, sans-serif" }}
+              >
+                {bookingMessage}
+              </div>
+            )}
+            {bookingError && (
+              <div
+                className="alert alert-danger"
+                role="alert"
+                style={{ fontFamily: "Open Sans, sans-serif" }}
+              >
+                {bookingError}
+              </div>
+            )}
             <button
-              className="btn w-100"
+              onClick={handleBooking}
+              className="btn w-100 mb-2"
               style={{
                 backgroundColor: "#FF6F61",
                 color: "white",
@@ -228,6 +364,20 @@ function VenuePage() {
             >
               Book Now
             </button>
+            {user && user.venueManager && (
+              <Link
+                to={`/venue/${id}/edit`}
+                className="btn w-100"
+                style={{
+                  backgroundColor: "#4A90E2",
+                  color: "white",
+                  fontFamily: "Poppins, sans-serif",
+                  fontWeight: "bold",
+                }}
+              >
+                Edit Venue
+              </Link>
+            )}
           </div>
         </div>
       </main>
