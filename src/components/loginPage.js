@@ -1,12 +1,16 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { loginUser } from "../api/auth";
+//import { getKey } from "../api/key";
+
+//getKey(); used this to call for the key
 
 function LoginPage() {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
+  const [userData, setUserData] = useState(null);
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
@@ -23,6 +27,7 @@ function LoginPage() {
     e.preventDefault();
     setMessage(null);
     setError(null);
+    setUserData(null);
 
     const credentials = {
       email: formData.email,
@@ -37,9 +42,15 @@ function LoginPage() {
         JSON.stringify({
           name: result.data.name,
           email: result.data.email,
+          bio: result.data.bio,
+          avatar: result.data.avatar,
+          banner: result.data.banner,
           venueManager: result.data.venueManager,
+          venues: result.data.venues,
+          bookings: result.data.bookings,
         })
       );
+      setUserData(result.data);
       setMessage("Login successful!");
       setTimeout(() => {
         navigate("/");
@@ -165,68 +176,128 @@ function LoginPage() {
             {error}
           </div>
         )}
-        <form onSubmit={handleSubmit}>
-          <div className="mb-3">
-            <label
-              htmlFor="email"
-              className="form-label"
-              style={{ fontFamily: "Open Sans, sans-serif", color: "#333333" }}
+        {userData ? (
+          <div className="card p-4 shadow-sm">
+            <h3
+              style={{
+                fontFamily: "Poppins, sans-serif",
+                fontWeight: "600",
+                color: "#333333",
+                fontSize: "1.5rem",
+                marginBottom: "1rem",
+              }}
             >
-              Email
-            </label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              className="form-control"
+              Welcome, {userData.name}!
+            </h3>
+            <p
               style={{
                 fontFamily: "Open Sans, sans-serif",
                 color: "#333333",
-                backgroundColor: "#F5F5F5",
-                borderColor: "#333333",
+                fontSize: "1rem",
+                marginBottom: "1rem",
               }}
-              required
-            />
-          </div>
-          <div className="mb-3">
-            <label
-              htmlFor="password"
-              className="form-label"
-              style={{ fontFamily: "Open Sans, sans-serif", color: "#333333" }}
             >
-              Password
-            </label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              className="form-control"
+              {userData.bio || "No bio available."}
+            </p>
+            {userData.avatar?.url && (
+              <img
+                src={userData.avatar.url}
+                alt={userData.avatar.alt || "User avatar"}
+                className="rounded-circle mb-3"
+                style={{ width: "100px", height: "100px", objectFit: "cover" }}
+              />
+            )}
+            <p
               style={{
                 fontFamily: "Open Sans, sans-serif",
                 color: "#333333",
-                backgroundColor: "#F5F5F5",
-                borderColor: "#333333",
+                fontSize: "1rem",
               }}
-              required
-            />
+            >
+              You are {userData.venueManager ? "a venue manager" : "a customer"}
+              .
+            </p>
+            <p
+              style={{
+                fontFamily: "Open Sans, sans-serif",
+                color: "#333333",
+                fontSize: "1rem",
+              }}
+            >
+              You have {userData.venues?.length || 0} venue(s) and{" "}
+              {userData.bookings?.length || 0} booking(s).
+            </p>
           </div>
-          <button
-            type="submit"
-            className="btn w-100"
-            style={{
-              backgroundColor: "#FF6F61",
-              color: "white",
-              fontFamily: "Poppins, sans-serif",
-              fontWeight: "bold",
-            }}
-          >
-            Login
-          </button>
-        </form>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <div className="mb-3">
+              <label
+                htmlFor="email"
+                className="form-label"
+                style={{
+                  fontFamily: "Open Sans, sans-serif",
+                  color: "#333333",
+                }}
+              >
+                Email
+              </label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                className="form-control"
+                style={{
+                  fontFamily: "Open Sans, sans-serif",
+                  color: "#333333",
+                  backgroundColor: "#F5F5F5",
+                  borderColor: "#333333",
+                }}
+                required
+              />
+            </div>
+            <div className="mb-3">
+              <label
+                htmlFor="password"
+                className="form-label"
+                style={{
+                  fontFamily: "Open Sans, sans-serif",
+                  color: "#333333",
+                }}
+              >
+                Password
+              </label>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                className="form-control"
+                style={{
+                  fontFamily: "Open Sans, sans-serif",
+                  color: "#333333",
+                  backgroundColor: "#F5F5F5",
+                  borderColor: "#333333",
+                }}
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              className="btn w-100"
+              style={{
+                backgroundColor: "#FF6F61",
+                color: "white",
+                fontFamily: "Poppins, sans-serif",
+                fontWeight: "bold",
+              }}
+            >
+              Login
+            </button>
+          </form>
+        )}
         <p
           className="mt-3 text-center"
           style={{ fontFamily: "Open Sans, sans-serif", color: "#333333" }}

@@ -1,40 +1,50 @@
-import { API_HOLIDAZE } from "./auth";
+import { API_VENUES } from "./auth";
 
-export const fetchVenues = async () => {
+export const fetchVenueById = async (id) => {
   try {
-    const response = await fetch(`${API_HOLIDAZE}/venues`);
+    const response = await fetch(`${API_VENUES}/${id}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
     if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
+      const errorData = await response.json();
+      throw new Error(
+        errorData.message || `HTTP error! Status: ${response.status}`
+      );
     }
-    const data = await response.json();
-    return data;
+
+    const result = await response.json();
+    return result.data;
   } catch (error) {
-    console.error("Error fetching venues:", error);
-    return [];
+    console.error("Error fetching venue:", error);
+    return null;
   }
 };
 
 export const searchVenues = async (query) => {
-  const venues = await fetchVenues();
-  if (!query) return venues;
-  return venues.filter(
-    (venue) =>
-      venue.name.toLowerCase().includes(query.toLowerCase()) ||
-      (venue.location?.city &&
-        venue.location.city.toLowerCase().includes(query.toLowerCase()))
-  );
-};
-
-export const fetchVenueById = async (id) => {
   try {
-    const response = await fetch(`${API_HOLIDAZE}/venues/${id}`);
+    const url = query ? `${API_VENUES}/search?q=${query}` : API_VENUES;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
     if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
+      const errorData = await response.json();
+      throw new Error(
+        errorData.message || `HTTP error! Status: ${response.status}`
+      );
     }
-    const data = await response.json();
-    return data;
+
+    const result = await response.json();
+    return result.data;
   } catch (error) {
-    console.error(`Error fetching venue with id ${id}:`, error);
-    return null;
+    console.error("Error searching venues:", error);
+    return [];
   }
 };

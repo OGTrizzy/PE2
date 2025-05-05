@@ -10,7 +10,6 @@ function HomePage() {
   useEffect(() => {
     const getVenues = async () => {
       const data = await searchVenues("");
-      console.log("Data from searchVenues:", data);
       setFilteredVenues(data);
       setLoading(false);
     };
