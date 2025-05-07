@@ -1,9 +1,8 @@
-import { useState } from "react";
+import { useState, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { loginUser } from "../api/auth";
-//import { getKey } from "../api/key";
-
-//getKey(); used this to call for the key
+import { loginUser } from "../api/auth.js";
+import { AuthContext } from "../context/authContext.js";
+import Header from "../components/header.js";
 
 function LoginPage() {
   const [formData, setFormData] = useState({
@@ -14,6 +13,7 @@ function LoginPage() {
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const { login } = useContext(AuthContext);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -29,123 +29,22 @@ function LoginPage() {
     setError(null);
     setUserData(null);
 
-    const credentials = {
-      email: formData.email,
-      password: formData.password,
-    };
-
-    const result = await loginUser(credentials);
+    const result = await loginUser(formData);
     if (result.success) {
-      localStorage.setItem("token", result.data.accessToken);
-      localStorage.setItem(
-        "user",
-        JSON.stringify({
-          name: result.data.name,
-          email: result.data.email,
-          bio: result.data.bio,
-          avatar: result.data.avatar,
-          banner: result.data.banner,
-          venueManager: result.data.venueManager,
-          venues: result.data.venues,
-          bookings: result.data.bookings,
-        })
-      );
+      login(result.data, result.data.accessToken);
       setUserData(result.data);
       setMessage("Login successful!");
       setTimeout(() => {
-        navigate("/");
+        navigate("/profile");
       }, 2000);
     } else {
-      setError(
-        result.error ||
-          "Failed to log in. Please check your credentials and try again."
-      );
+      setError(result.error || "Failed to log in. Please try again.");
     }
   };
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#F5F5F5" }}>
-      <header className="p-4 d-flex justify-content-between align-items-center">
-        <h1
-          style={{
-            fontFamily: "Poppins, sans-serif",
-            fontWeight: "bold",
-            color: "#FF6F61",
-            fontSize: "1.5rem",
-          }}
-        >
-          Holidaze
-        </h1>
-        <nav>
-          <ul className="d-flex list-unstyled gap-3 m-0">
-            <li>
-              <Link
-                to="/"
-                style={{
-                  color: "#4A90E2",
-                  fontFamily: "Poppins, sans-serif",
-                  fontWeight: "600",
-                  textDecoration: "none",
-                }}
-              >
-                Home
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/venues"
-                style={{
-                  color: "#4A90E2",
-                  fontFamily: "Poppins, sans-serif",
-                  fontWeight: "600",
-                  textDecoration: "none",
-                }}
-              >
-                Venues
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/login"
-                style={{
-                  color: "#4A90E2",
-                  fontFamily: "Poppins, sans-serif",
-                  fontWeight: "600",
-                  textDecoration: "none",
-                }}
-              >
-                Login
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/register"
-                style={{
-                  color: "#4A90E2",
-                  fontFamily: "Poppins, sans-serif",
-                  fontWeight: "600",
-                  textDecoration: "none",
-                }}
-              >
-                Register
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/create-venue"
-                style={{
-                  color: "#4A90E2",
-                  fontFamily: "Poppins, sans-serif",
-                  fontWeight: "600",
-                  textDecoration: "none",
-                }}
-              >
-                Create Venue
-              </Link>
-            </li>
-          </ul>
-        </nav>
-      </header>
+      <Header />
       <main className="p-4" style={{ maxWidth: "960px", margin: "0 auto" }}>
         <h2
           style={{

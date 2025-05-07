@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useState, useEffect, useContext } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { fetchVenueById } from "../api/venues";
-import { createBooking } from "../api/auth";
+import { createBooking, deleteVenue } from "../api/auth";
+import { AuthContext } from "../context/authContext";
+import Header from "../components/header";
 
 function VenuePage() {
   const { id } = useParams();
@@ -14,12 +16,12 @@ function VenuePage() {
   });
   const [bookingMessage, setBookingMessage] = useState(null);
   const [bookingError, setBookingError] = useState(null);
-  const [user, setUser] = useState(null);
+  const [deleteMessage, setDeleteMessage] = useState(null);
+  const [deleteError, setDeleteError] = useState(null);
+  const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const storedUser = JSON.parse(localStorage.getItem("user"));
-    setUser(storedUser);
-
     const getVenue = async () => {
       const data = await fetchVenueById(id);
       setVenue(data);
@@ -33,8 +35,8 @@ function VenuePage() {
 
   const generateCalendar = (bookings) => {
     const today = new Date();
-    const startDate = new Date(today.getFullYear(), today.getMonth(), 1); // start date for calender
-    const endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0); //end date for calender
+    const startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+    const endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     const dates = [];
 
     for (
@@ -127,111 +129,61 @@ function VenuePage() {
     }
   };
 
+  const handleDelete = async () => {
+    if (
+      !user ||
+      !user.venueManager ||
+      !venue ||
+      venue.owner?.name !== user.name
+    ) {
+      setDeleteError("You are not authorized to delete this venue.");
+      return;
+    }
+
+    if (!window.confirm("Are you sure you want to delete this venue?")) {
+      return;
+    }
+
+    const result = await deleteVenue(id);
+    if (result.success) {
+      setDeleteMessage("Venue deleted successfully!");
+      setTimeout(() => navigate("/venues"), 2000);
+    } else {
+      setDeleteError(result.error || "Failed to delete venue.");
+    }
+  };
+
   if (loading) {
     return (
-      <p
-        className="text-center"
-        style={{ fontFamily: "Open Sans, sans-serif", color: "#333333" }}
-      >
-        Loading venue...
-      </p>
+      <div style={{ minHeight: "100vh", backgroundColor: "#F5F5F5" }}>
+        <Header />
+        <p
+          className="text-center"
+          style={{ fontFamily: "Open Sans, sans-serif", color: "#333333" }}
+        >
+          Loading venue...
+        </p>
+      </div>
     );
   }
 
   if (!venue) {
     return (
-      <p
-        className="text-center"
-        style={{ fontFamily: "Open Sans, sans-serif", color: "#333333" }}
-      >
-        Venue not found.
-      </p>
+      <div style={{ minHeight: "100vh", backgroundColor: "#F5F5F5" }}>
+        <Header />
+        <p
+          className="text-center"
+          style={{ fontFamily: "Open Sans, sans-serif", color: "#333333" }}
+        >
+          Venue not found.
+        </p>
+      </div>
     );
   }
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#F5F5F5" }}>
-      <header className="p-4 d-flex justify-content-between align-items-center">
-        <h1
-          style={{
-            fontFamily: "Poppins, sans-serif",
-            fontWeight: "bold",
-            color: "#FF6F61",
-            fontSize: "1.5rem",
-          }}
-        >
-          Holidaze
-        </h1>
-        <nav>
-          <ul className="d-flex list-unstyled gap-3 m-0">
-            <li>
-              <Link
-                to="/"
-                style={{
-                  color: "#4A90E2",
-                  fontFamily: "Poppins, sans-serif",
-                  fontWeight: "600",
-                  textDecoration: "none",
-                }}
-              >
-                Home
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/venues"
-                style={{
-                  color: "#4A90E2",
-                  fontFamily: "Poppins, sans-serif",
-                  fontWeight: "600",
-                  textDecoration: "none",
-                }}
-              >
-                Venues
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/login"
-                style={{
-                  color: "#4A90E2",
-                  fontFamily: "Poppins, sans-serif",
-                  fontWeight: "600",
-                  textDecoration: "none",
-                }}
-              >
-                Login
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/register"
-                style={{
-                  color: "#4A90E2",
-                  fontFamily: "Poppins, sans-serif",
-                  fontWeight: "600",
-                  textDecoration: "none",
-                }}
-              >
-                Register
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/create-venue"
-                style={{
-                  color: "#4A90E2",
-                  fontFamily: "Poppins, sans-serif",
-                  fontWeight: "600",
-                  textDecoration: "none",
-                }}
-              >
-                Create Venue
-              </Link>
-            </li>
-          </ul>
-        </nav>
-      </header>
+      <Header />
       <main className="p-4" style={{ maxWidth: "1280px", margin: "0 auto" }}>
         <div className="row g-4">
           <div className="col-md-6">
@@ -364,19 +316,54 @@ function VenuePage() {
             >
               Book Now
             </button>
-            {user && user.venueManager && (
-              <Link
-                to={`/venue/${id}/edit`}
-                className="btn w-100"
-                style={{
-                  backgroundColor: "#4A90E2",
-                  color: "white",
-                  fontFamily: "Poppins, sans-serif",
-                  fontWeight: "bold",
-                }}
+            {user &&
+              user.venueManager &&
+              venue &&
+              venue.owner?.name === user.name && (
+                <>
+                  <Link
+                    to={`/venue/${id}/edit`}
+                    className="btn w-100 mb-2"
+                    style={{
+                      backgroundColor: "#4A90E2",
+                      color: "white",
+                      fontFamily: "Poppins, sans-serif",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    Edit Venue
+                  </Link>
+                  <button
+                    onClick={handleDelete}
+                    className="btn w-100"
+                    style={{
+                      backgroundColor: "#FF4444",
+                      color: "white",
+                      fontFamily: "Poppins, sans-serif",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    Delete Venue
+                  </button>
+                </>
+              )}
+            {deleteMessage && (
+              <div
+                className="alert alert-success mt-2"
+                role="alert"
+                style={{ fontFamily: "Open Sans, sans-serif" }}
               >
-                Edit Venue
-              </Link>
+                {deleteMessage}
+              </div>
+            )}
+            {deleteError && (
+              <div
+                className="alert alert-danger mt-2"
+                role="alert"
+                style={{ fontFamily: "Open Sans, sans-serif" }}
+              >
+                {deleteError}
+              </div>
             )}
           </div>
         </div>

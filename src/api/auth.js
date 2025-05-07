@@ -3,13 +3,12 @@ export const API_HOLIDAZE = `${API_BASE}/holidaze`;
 export const API_AUTH = `${API_BASE}/auth`;
 export const API_AUTH_REGISTER = `${API_AUTH}/register`;
 export const API_AUTH_LOGIN = `${API_AUTH}/login`;
-export const API_AUTH_KEY = `${API_AUTH}/create-api-key`;
 export const API_PROFILES = `${API_HOLIDAZE}/profiles`;
 export const API_BOOKINGS = `${API_HOLIDAZE}/bookings`;
 export const API_VENUES = `${API_HOLIDAZE}/venues`;
 export const API_KEY = "e91a1880-1d99-40a4-a44a-c3d808c11cb0";
 
-// helpfunction to get profiledata
+// helper function to fetch profile data
 const fetchProfile = async (name, token) => {
   try {
     const response = await fetch(`${API_PROFILES}/${name}`, {
@@ -36,6 +35,7 @@ const fetchProfile = async (name, token) => {
   }
 };
 
+// register new user
 export const registerUser = async (userData) => {
   try {
     const response = await fetch(API_AUTH_REGISTER, {
@@ -47,6 +47,7 @@ export const registerUser = async (userData) => {
         name: userData.name,
         email: userData.email,
         password: userData.password,
+        venueManager: userData.venueManager || false,
       }),
     });
 
@@ -65,7 +66,7 @@ export const registerUser = async (userData) => {
   }
 };
 
-// login to get token
+// login to get token and user data
 export const loginUser = async (credentials) => {
   try {
     const loginResponse = await fetch(API_AUTH_LOGIN, {
@@ -94,67 +95,32 @@ export const loginUser = async (credentials) => {
       throw new Error("Invalid login response: Missing token or username");
     }
 
-    localStorage.setItem("token", token); // save token
-    localStorage.setItem("name", userName); // save name
-
-    // get profiledata with token
+    // fetch full profile data
     const profileData = await fetchProfile(userName, token);
 
-    return {
-      success: true,
-      data: {
-        accessToken: token,
-        name: profileData.name,
-        email: profileData.email,
-        bio: profileData.bio || "",
-        avatar: profileData.avatar || { url: "", alt: "" },
-        banner: profileData.banner || { url: "", alt: "" },
-        venueManager: profileData.venueManager || false,
-        venues: profileData.venues || [],
-        bookings: profileData.bookings || [],
-      },
+    const user = {
+      accessToken: token,
+      name: profileData.name,
+      email: profileData.email,
+      bio: profileData.bio || "",
+      avatar: profileData.avatar || { url: "", alt: "" },
+      banner: profileData.banner || { url: "", alt: "" },
+      venueManager: profileData.venueManager || false,
+      venues: profileData.venues || [],
+      bookings: profileData.bookings || [],
     };
+
+    localStorage.setItem("token", token);
+    localStorage.setItem("user", JSON.stringify(user));
+
+    return { success: true, data: user };
   } catch (error) {
     console.error("Error logging in user:", error);
     return { success: false, error: error.message };
   }
 };
 
-export const createApiKey = async () => {
-  const token = localStorage.getItem("token");
-  if (!token) {
-    return {
-      success: false,
-      error: "You must be logged in to create an API key.",
-    };
-  }
-
-  try {
-    const response = await fetch(API_AUTH_KEY, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-        "X-Noroff-API-Key": API_KEY,
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(
-        errorData.message || `HTTP error! Status: ${response.status}`
-      );
-    }
-
-    const data = await response.json();
-    return { success: true, data: data.data };
-  } catch (error) {
-    console.error("Error creating API key:", error);
-    return { success: false, error: error.message };
-  }
-};
-
-//get profiles
+// fetch all profiles
 export const fetchProfiles = async () => {
   try {
     const response = await fetch(API_PROFILES, {
@@ -179,6 +145,7 @@ export const fetchProfiles = async () => {
   }
 };
 
+// search profiles
 export const searchProfiles = async (query) => {
   try {
     const response = await fetch(`${API_PROFILES}/search?q=${query}`, {
@@ -203,6 +170,7 @@ export const searchProfiles = async (query) => {
   }
 };
 
+// fetch venues for a profile
 export const fetchProfileVenues = async (name) => {
   const token = localStorage.getItem("token");
   if (!token) {
@@ -212,30 +180,11 @@ export const fetchProfileVenues = async (name) => {
     };
   }
 
-  try {
-    const response = await fetch(`${API_PROFILES}/${name}/venues`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(
-        errorData.message || `HTTP error! Status: ${response.status}`
-      );
-    }
-
-    const result = await response.json();
-    return { success: true, data: result.data };
-  } catch (error) {
-    console.error("Error fetching profile venues:", error);
-    return { success: false, error: error.message };
-  }
+  const profile = await fetchProfile(name, token);
+  return { success: true, data: profile.venues || [] };
 };
 
+// fetch bookings for a profile
 export const fetchProfileBookings = async (name) => {
   const token = localStorage.getItem("token");
   if (!token) {
@@ -245,12 +194,20 @@ export const fetchProfileBookings = async (name) => {
     };
   }
 
+  const profile = await fetchProfile(name, token);
+  return { success: true, data: profile.bookings || [] };
+};
+
+// fetch a specific venue by id
+export const fetchVenueById = async (venueId) => {
+  const token = localStorage.getItem("token");
   try {
-    const response = await fetch(`${API_PROFILES}/${name}/bookings`, {
+    const response = await fetch(`${API_VENUES}/${venueId}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
+        "X-Noroff-API-Key": API_KEY,
       },
     });
 
@@ -262,15 +219,17 @@ export const fetchProfileBookings = async (name) => {
     }
 
     const result = await response.json();
-    return { success: true, data: result.data };
+    return result.data;
   } catch (error) {
-    console.error("Error fetching profile bookings:", error);
-    return { success: false, error: error.message };
+    console.error("Error fetching venue:", error);
+    throw error;
   }
 };
 
+// create booking
 export const createBooking = async (bookingData) => {
   const token = localStorage.getItem("token");
+
   if (!token) {
     return { success: false, error: "You must be logged in to book a venue." };
   }
@@ -300,6 +259,7 @@ export const createBooking = async (bookingData) => {
   }
 };
 
+// fetch booking by id
 export const fetchBookingById = async (bookingId) => {
   const token = localStorage.getItem("token");
   if (!token) {
@@ -333,6 +293,7 @@ export const fetchBookingById = async (bookingId) => {
   }
 };
 
+// update booking
 export const updateBooking = async (bookingId, bookingData) => {
   const token = localStorage.getItem("token");
   if (!token) {
@@ -367,6 +328,7 @@ export const updateBooking = async (bookingId, bookingData) => {
   }
 };
 
+// delete booking
 export const deleteBooking = async (bookingId) => {
   const token = localStorage.getItem("token");
   if (!token) {
@@ -399,6 +361,7 @@ export const deleteBooking = async (bookingId) => {
   }
 };
 
+// create venue
 export const createVenue = async (venueData) => {
   const token = localStorage.getItem("token");
   const user = JSON.parse(localStorage.getItem("user"));
@@ -442,6 +405,7 @@ export const createVenue = async (venueData) => {
   }
 };
 
+// update venue
 export const updateVenue = async (venueId, venueData) => {
   const token = localStorage.getItem("token");
   const user = JSON.parse(localStorage.getItem("user"));
@@ -485,6 +449,7 @@ export const updateVenue = async (venueId, venueData) => {
   }
 };
 
+// delete venue
 export const deleteVenue = async (venueId) => {
   const token = localStorage.getItem("token");
   const user = JSON.parse(localStorage.getItem("user"));
@@ -523,5 +488,31 @@ export const deleteVenue = async (venueId) => {
   } catch (error) {
     console.error("Error deleting venue:", error);
     return { success: false, error: error.message };
+  }
+};
+
+// fetch all venues
+export const fetchVenues = async () => {
+  try {
+    const response = await fetch(API_VENUES, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Noroff-API-Key": API_KEY,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(
+        errorData.message || `HTTP error! Status: ${response.status}`
+      );
+    }
+
+    const result = await response.json();
+    return result.data;
+  } catch (error) {
+    console.error("Error fetching venues:", error);
+    return [];
   }
 };

@@ -1,12 +1,16 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useContext } from "react";
+import { useNavigate } from "react-router-dom";
 import { createVenue } from "../api/auth";
+import { AuthContext } from "../context/authContext";
+import Header from "../components/header";
 
 function CreateVenuePage() {
+  const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    media: [""],
+    media: [],
     price: 0,
     maxGuests: 1,
     rating: 0,
@@ -26,9 +30,8 @@ function CreateVenuePage() {
       lng: 0,
     },
   });
-  const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
-  const navigate = useNavigate();
+  const [success, setSuccess] = useState(null);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -36,25 +39,16 @@ function CreateVenuePage() {
       const metaField = name.split(".")[1];
       setFormData({
         ...formData,
-        meta: {
-          ...formData.meta,
-          [metaField]: type === "checkbox" ? checked : value,
-        },
+        meta: { ...formData.meta, [metaField]: checked },
       });
     } else if (name.startsWith("location.")) {
       const locationField = name.split(".")[1];
       setFormData({
         ...formData,
-        location: {
-          ...formData.location,
-          [locationField]: value,
-        },
+        location: { ...formData.location, [locationField]: value },
       });
     } else if (name === "media") {
-      setFormData({
-        ...formData,
-        media: [value],
-      });
+      setFormData({ ...formData, media: [value] });
     } else {
       setFormData({
         ...formData,
@@ -65,115 +59,41 @@ function CreateVenuePage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setMessage(null);
     setError(null);
+    setSuccess(null);
 
-    const venueData = {
-      name: formData.name,
-      description: formData.description,
-      media: formData.media.filter((url) => url.trim() !== ""),
-      price: formData.price,
-      maxGuests: formData.maxGuests,
-      rating: formData.rating,
-      meta: formData.meta,
-      location: formData.location,
-    };
+    if (!user || !user.venueManager) {
+      setError("You must be a venue manager to create a venue.");
+      return;
+    }
 
-    const result = await createVenue(venueData);
+    const result = await createVenue(formData);
     if (result.success) {
-      setMessage("Venue created successfully!");
-      setTimeout(() => {
-        navigate("/");
-      }, 2000);
+      setSuccess("Venue created successfully!");
+      setTimeout(() => navigate(`/venue/${result.data.id}`), 2000);
     } else {
       setError(result.error || "Failed to create venue. Please try again.");
     }
   };
 
+  if (!user || !user.venueManager) {
+    return (
+      <div style={{ minHeight: "100vh", backgroundColor: "#F5F5F5" }}>
+        <Header />
+        <p
+          className="text-center"
+          style={{ fontFamily: "Open Sans, sans-serif", color: "#333333" }}
+        >
+          You must be a venue manager to create a venue.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#F5F5F5" }}>
-      <header className="p-4 d-flex justify-content-between align-items-center">
-        <h1
-          style={{
-            fontFamily: "Poppins, sans-serif",
-            fontWeight: "bold",
-            color: "#FF6F61",
-            fontSize: "1.5rem",
-          }}
-        >
-          Holidaze
-        </h1>
-        <nav>
-          <ul className="d-flex list-unstyled gap-3 m-0">
-            <li>
-              <Link
-                to="/"
-                style={{
-                  color: "#4A90E2",
-                  fontFamily: "Poppins, sans-serif",
-                  fontWeight: "600",
-                  textDecoration: "none",
-                }}
-              >
-                Home
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/venues"
-                style={{
-                  color: "#4A90E2",
-                  fontFamily: "Poppins, sans-serif",
-                  fontWeight: "600",
-                  textDecoration: "none",
-                }}
-              >
-                Venues
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/login"
-                style={{
-                  color: "#4A90E2",
-                  fontFamily: "Poppins, sans-serif",
-                  fontWeight: "600",
-                  textDecoration: "none",
-                }}
-              >
-                Login
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/register"
-                style={{
-                  color: "#4A90E2",
-                  fontFamily: "Poppins, sans-serif",
-                  fontWeight: "600",
-                  textDecoration: "none",
-                }}
-              >
-                Register
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/create-venue"
-                style={{
-                  color: "#4A90E2",
-                  fontFamily: "Poppins, sans-serif",
-                  fontWeight: "600",
-                  textDecoration: "none",
-                }}
-              >
-                Create Venue
-              </Link>
-            </li>
-          </ul>
-        </nav>
-      </header>
-      <main className="p-4" style={{ maxWidth: "960px", margin: "0 auto" }}>
+      <Header />
+      <main className="p-4" style={{ maxWidth: "800px", margin: "0 auto" }}>
         <h2
           style={{
             fontFamily: "Poppins, sans-serif",
@@ -181,391 +101,309 @@ function CreateVenuePage() {
             color: "#333333",
             fontSize: "1.875rem",
             marginBottom: "1rem",
+            textAlign: "center",
           }}
         >
-          Create a New Venue
+          Create New Venue
         </h2>
-        {message && (
-          <div
-            className="alert alert-success"
-            role="alert"
-            style={{ fontFamily: "Open Sans, sans-serif" }}
-          >
-            {message}
-          </div>
-        )}
-        {error && (
-          <div
-            className="alert alert-danger"
-            role="alert"
-            style={{ fontFamily: "Open Sans, sans-serif" }}
-          >
-            {error}
-          </div>
-        )}
-        <form onSubmit={handleSubmit}>
-          <div className="mb-3">
-            <label
-              htmlFor="name"
-              className="form-label"
-              style={{ fontFamily: "Open Sans, sans-serif", color: "#333333" }}
-            >
-              Venue Name
-            </label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              className="form-control"
-              style={{
-                fontFamily: "Open Sans, sans-serif",
-                color: "#333333",
-                backgroundColor: "#F5F5F5",
-                borderColor: "#333333",
-              }}
-              required
-            />
-          </div>
-          <div className="mb-3">
-            <label
-              htmlFor="description"
-              className="form-label"
-              style={{ fontFamily: "Open Sans, sans-serif", color: "#333333" }}
-            >
-              Description
-            </label>
-            <textarea
-              id="description"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              className="form-control"
-              style={{
-                fontFamily: "Open Sans, sans-serif",
-                color: "#333333",
-                backgroundColor: "#F5F5F5",
-                borderColor: "#333333",
-              }}
-              rows="4"
-              required
-            />
-          </div>
-          <div className="mb-3">
-            <label
-              htmlFor="media"
-              className="form-label"
-              style={{ fontFamily: "Open Sans, sans-serif", color: "#333333" }}
-            >
-              Media URL
-            </label>
-            <input
-              type="url"
-              id="media"
-              name="media"
-              value={formData.media[0]}
-              onChange={handleChange}
-              className="form-control"
-              style={{
-                fontFamily: "Open Sans, sans-serif",
-                color: "#333333",
-                backgroundColor: "#F5F5F5",
-                borderColor: "#333333",
-              }}
-            />
-          </div>
-          <div className="mb-3">
-            <label
-              htmlFor="price"
-              className="form-label"
-              style={{ fontFamily: "Open Sans, sans-serif", color: "#333333" }}
-            >
-              Price per Night
-            </label>
-            <input
-              type="number"
-              id="price"
-              name="price"
-              value={formData.price}
-              onChange={handleChange}
-              className="form-control"
-              style={{
-                fontFamily: "Open Sans, sans-serif",
-                color: "#333333",
-                backgroundColor: "#F5F5F5",
-                borderColor: "#333333",
-              }}
-              min="0"
-              required
-            />
-          </div>
-          <div className="mb-3">
-            <label
-              htmlFor="maxGuests"
-              className="form-label"
-              style={{ fontFamily: "Open Sans, sans-serif", color: "#333333" }}
-            >
-              Max Guests
-            </label>
-            <input
-              type="number"
-              id="maxGuests"
-              name="maxGuests"
-              value={formData.maxGuests}
-              onChange={handleChange}
-              className="form-control"
-              style={{
-                fontFamily: "Open Sans, sans-serif",
-                color: "#333333",
-                backgroundColor: "#F5F5F5",
-                borderColor: "#333333",
-              }}
-              min="1"
-              required
-            />
-          </div>
-          <div className="mb-3">
-            <label
-              htmlFor="rating"
-              className="form-label"
-              style={{ fontFamily: "Open Sans, sans-serif", color: "#333333" }}
-            >
-              Rating (0-5)
-            </label>
-            <input
-              type="number"
-              id="rating"
-              name="rating"
-              value={formData.rating}
-              onChange={handleChange}
-              className="form-control"
-              style={{
-                fontFamily: "Open Sans, sans-serif",
-                color: "#333333",
-                backgroundColor: "#F5F5F5",
-                borderColor: "#333333",
-              }}
-              min="0"
-              max="5"
-            />
-          </div>
-          <div className="mb-3">
-            <label
-              className="form-label"
-              style={{ fontFamily: "Open Sans, sans-serif", color: "#333333" }}
-            >
-              Amenities
-            </label>
-            <div className="form-check">
-              <input
-                type="checkbox"
-                id="wifi"
-                name="meta.wifi"
-                checked={formData.meta.wifi}
-                onChange={handleChange}
-                className="form-check-input"
-              />
+        <div className="card p-4 shadow-sm">
+          <form onSubmit={handleSubmit}>
+            <div className="mb-3">
               <label
-                htmlFor="wifi"
-                className="form-check-label"
+                htmlFor="name"
                 style={{
-                  fontFamily: "Open Sans, sans-serif",
+                  fontFamily: "Poppins, sans-serif",
+                  fontWeight: "600",
                   color: "#333333",
                 }}
               >
-                WiFi
+                Venue Name
               </label>
-            </div>
-            <div className="form-check">
               <input
-                type="checkbox"
-                id="parking"
-                name="meta.parking"
-                checked={formData.meta.parking}
+                type="text"
+                id="name"
+                name="name"
+                value={formData.name}
                 onChange={handleChange}
-                className="form-check-input"
+                className="form-control"
+                required
+                style={{ fontFamily: "Open Sans, sans-serif" }}
               />
+            </div>
+            <div className="mb-3">
               <label
-                htmlFor="parking"
-                className="form-check-label"
+                htmlFor="description"
                 style={{
-                  fontFamily: "Open Sans, sans-serif",
+                  fontFamily: "Poppins, sans-serif",
+                  fontWeight: "600",
                   color: "#333333",
                 }}
               >
-                Parking
+                Description
               </label>
-            </div>
-            <div className="form-check">
-              <input
-                type="checkbox"
-                id="breakfast"
-                name="meta.breakfast"
-                checked={formData.meta.breakfast}
+              <textarea
+                id="description"
+                name="description"
+                value={formData.description}
                 onChange={handleChange}
-                className="form-check-input"
+                className="form-control"
+                required
+                style={{ fontFamily: "Open Sans, sans-serif" }}
               />
+            </div>
+            <div className="mb-3">
               <label
-                htmlFor="breakfast"
-                className="form-check-label"
+                htmlFor="media"
                 style={{
-                  fontFamily: "Open Sans, sans-serif",
+                  fontFamily: "Poppins, sans-serif",
+                  fontWeight: "600",
                   color: "#333333",
                 }}
               >
-                Breakfast
+                Media URL (optional)
               </label>
-            </div>
-            <div className="form-check">
               <input
-                type="checkbox"
-                id="pets"
-                name="meta.pets"
-                checked={formData.meta.pets}
+                type="url"
+                id="media"
+                name="media"
+                value={formData.media[0] || ""}
                 onChange={handleChange}
-                className="form-check-input"
+                className="form-control"
+                style={{ fontFamily: "Open Sans, sans-serif" }}
               />
+            </div>
+            <div className="mb-3">
               <label
-                htmlFor="pets"
-                className="form-check-label"
+                htmlFor="price"
                 style={{
-                  fontFamily: "Open Sans, sans-serif",
+                  fontFamily: "Poppins, sans-serif",
+                  fontWeight: "600",
                   color: "#333333",
                 }}
               >
-                Pets Allowed
+                Price per Night
               </label>
+              <input
+                type="number"
+                id="price"
+                name="price"
+                value={formData.price}
+                onChange={handleChange}
+                className="form-control"
+                required
+                min="0"
+                style={{ fontFamily: "Open Sans, sans-serif" }}
+              />
             </div>
-          </div>
-          <div className="mb-3">
-            <label
-              htmlFor="address"
-              className="form-label"
-              style={{ fontFamily: "Open Sans, sans-serif", color: "#333333" }}
-            >
-              Address
-            </label>
-            <input
-              type="text"
-              id="address"
-              name="location.address"
-              value={formData.location.address}
-              onChange={handleChange}
-              className="form-control"
+            <div className="mb-3">
+              <label
+                htmlFor="maxGuests"
+                style={{
+                  fontFamily: "Poppins, sans-serif",
+                  fontWeight: "600",
+                  color: "#333333",
+                }}
+              >
+                Max Guests
+              </label>
+              <input
+                type="number"
+                id="maxGuests"
+                name="maxGuests"
+                value={formData.maxGuests}
+                onChange={handleChange}
+                className="form-control"
+                required
+                min="1"
+                style={{ fontFamily: "Open Sans, sans-serif" }}
+              />
+            </div>
+            <div className="mb-3">
+              <label
+                style={{
+                  fontFamily: "Poppins, sans-serif",
+                  fontWeight: "600",
+                  color: "#333333",
+                }}
+              >
+                Amenities
+              </label>
+              <div className="form-check">
+                <input
+                  type="checkbox"
+                  id="wifi"
+                  name="meta.wifi"
+                  checked={formData.meta.wifi}
+                  onChange={handleChange}
+                  className="form-check-input"
+                />
+                <label
+                  htmlFor="wifi"
+                  className="form-check-label"
+                  style={{
+                    fontFamily: "Open Sans, sans-serif",
+                    color: "#333333",
+                  }}
+                >
+                  WiFi
+                </label>
+              </div>
+              <div className="form-check">
+                <input
+                  type="checkbox"
+                  id="parking"
+                  name="meta.parking"
+                  checked={formData.meta.parking}
+                  onChange={handleChange}
+                  className="form-check-input"
+                />
+                <label
+                  htmlFor="parking"
+                  className="form-check-label"
+                  style={{
+                    fontFamily: "Open Sans, sans-serif",
+                    color: "#333333",
+                  }}
+                >
+                  Parking
+                </label>
+              </div>
+              <div className="form-check">
+                <input
+                  type="checkbox"
+                  id="breakfast"
+                  name="meta.breakfast"
+                  checked={formData.meta.breakfast}
+                  onChange={handleChange}
+                  className="form-check-input"
+                />
+                <label
+                  htmlFor="breakfast"
+                  className="form-check-label"
+                  style={{
+                    fontFamily: "Open Sans, sans-serif",
+                    color: "#333333",
+                  }}
+                >
+                  Breakfast
+                </label>
+              </div>
+              <div className="form-check">
+                <input
+                  type="checkbox"
+                  id="pets"
+                  name="meta.pets"
+                  checked={formData.meta.pets}
+                  onChange={handleChange}
+                  className="form-check-input"
+                />
+                <label
+                  htmlFor="pets"
+                  className="form-check-label"
+                  style={{
+                    fontFamily: "Open Sans, sans-serif",
+                    color: "#333333",
+                  }}
+                >
+                  Pets Allowed
+                </label>
+              </div>
+            </div>
+            <div className="mb-3">
+              <label
+                htmlFor="location.address"
+                style={{
+                  fontFamily: "Poppins, sans-serif",
+                  fontWeight: "600",
+                  color: "#333333",
+                }}
+              >
+                Address (optional)
+              </label>
+              <input
+                type="text"
+                id="location.address"
+                name="location.address"
+                value={formData.location.address}
+                onChange={handleChange}
+                className="form-control"
+                style={{ fontFamily: "Open Sans, sans-serif" }}
+              />
+            </div>
+            <div className="mb-3">
+              <label
+                htmlFor="location.city"
+                style={{
+                  fontFamily: "Poppins, sans-serif",
+                  fontWeight: "600",
+                  color: "#333333",
+                }}
+              >
+                City (optional)
+              </label>
+              <input
+                type="text"
+                id="location.city"
+                name="location.city"
+                value={formData.location.city}
+                onChange={handleChange}
+                className="form-control"
+                style={{ fontFamily: "Open Sans, sans-serif" }}
+              />
+            </div>
+            <div className="mb-3">
+              <label
+                htmlFor="location.country"
+                style={{
+                  fontFamily: "Poppins, sans-serif",
+                  fontWeight: "600",
+                  color: "#333333",
+                }}
+              >
+                Country (optional)
+              </label>
+              <input
+                type="text"
+                id="location.country"
+                name="location.country"
+                value={formData.location.country}
+                onChange={handleChange}
+                className="form-control"
+                style={{ fontFamily: "Open Sans, sans-serif" }}
+              />
+            </div>
+            {error && (
+              <div
+                className="alert alert-danger"
+                role="alert"
+                style={{ fontFamily: "Open Sans, sans-serif" }}
+              >
+                {error}
+              </div>
+            )}
+            {success && (
+              <div
+                className="alert alert-success"
+                role="alert"
+                style={{ fontFamily: "Open Sans, sans-serif" }}
+              >
+                {success}
+              </div>
+            )}
+            <button
+              type="submit"
+              className="btn w-100"
               style={{
-                fontFamily: "Open Sans, sans-serif",
-                color: "#333333",
-                backgroundColor: "#F5F5F5",
-                borderColor: "#333333",
+                backgroundColor: "#FF6F61",
+                color: "white",
+                fontFamily: "Poppins, sans-serif",
+                fontWeight: "bold",
               }}
-            />
-          </div>
-          <div className="mb-3">
-            <label
-              htmlFor="city"
-              className="form-label"
-              style={{ fontFamily: "Open Sans, sans-serif", color: "#333333" }}
             >
-              City
-            </label>
-            <input
-              type="text"
-              id="city"
-              name="location.city"
-              value={formData.location.city}
-              onChange={handleChange}
-              className="form-control"
-              style={{
-                fontFamily: "Open Sans, sans-serif",
-                color: "#333333",
-                backgroundColor: "#F5F5F5",
-                borderColor: "#333333",
-              }}
-            />
-          </div>
-          <div className="mb-3">
-            <label
-              htmlFor="zip"
-              className="form-label"
-              style={{ fontFamily: "Open Sans, sans-serif", color: "#333333" }}
-            >
-              ZIP Code
-            </label>
-            <input
-              type="text"
-              id="zip"
-              name="location.zip"
-              value={formData.location.zip}
-              onChange={handleChange}
-              className="form-control"
-              style={{
-                fontFamily: "Open Sans, sans-serif",
-                color: "#333333",
-                backgroundColor: "#F5F5F5",
-                borderColor: "#333333",
-              }}
-            />
-          </div>
-          <div className="mb-3">
-            <label
-              htmlFor="country"
-              className="form-label"
-              style={{ fontFamily: "Open Sans, sans-serif", color: "#333333" }}
-            >
-              Country
-            </label>
-            <input
-              type="text"
-              id="country"
-              name="location.country"
-              value={formData.location.country}
-              onChange={handleChange}
-              className="form-control"
-              style={{
-                fontFamily: "Open Sans, sans-serif",
-                color: "#333333",
-                backgroundColor: "#F5F5F5",
-                borderColor: "#333333",
-              }}
-            />
-          </div>
-          <div className="mb-3">
-            <label
-              htmlFor="continent"
-              className="form-label"
-              style={{ fontFamily: "Open Sans, sans-serif", color: "#333333" }}
-            >
-              Continent
-            </label>
-            <input
-              type="text"
-              id="continent"
-              name="location.continent"
-              value={formData.location.continent}
-              onChange={handleChange}
-              className="form-control"
-              style={{
-                fontFamily: "Open Sans, sans-serif",
-                color: "#333333",
-                backgroundColor: "#F5F5F5",
-                borderColor: "#333333",
-              }}
-            />
-          </div>
-          <button
-            type="submit"
-            className="btn w-100"
-            style={{
-              backgroundColor: "#FF6F61",
-              color: "white",
-              fontFamily: "Poppins, sans-serif",
-              fontWeight: "bold",
-            }}
-          >
-            Create Venue
-          </button>
-        </form>
+              Create Venue
+            </button>
+          </form>
+        </div>
       </main>
     </div>
   );
