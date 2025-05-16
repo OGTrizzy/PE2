@@ -21,7 +21,6 @@ function HomePage() {
     e.preventDefault();
     setLoading(true);
     const results = await searchVenues(searchQuery);
-    console.log("Search results:", results);
     setFilteredVenues(results);
     setLoading(false);
   };
@@ -85,11 +84,20 @@ function HomePage() {
                 <div className="card h-100 shadow-sm">
                   <img
                     src={
-                      venue.media?.[0] || "https://via.placeholder.com/250x150"
+                      venue.media && venue.media[0]
+                        ? typeof venue.media[0] === "string"
+                          ? venue.media[0]
+                          : venue.media[0]?.url ||
+                            "https://images.unsplash.com/photo-1605537473964-8d8a2673ff7b?q=80&w=1936&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+                        : "https://images.unsplash.com/photo-1605537473964-8d8a2673ff7b?q=80&w=1936&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
                     }
                     alt={venue.name}
                     className="card-img-top"
                     style={{ height: "160px", objectFit: "cover" }}
+                    onError={(e) => {
+                      e.target.src =
+                        "https://images.unsplash.com/photo-1605537473964-8d8a2673ff7b?q=80&w=1936&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
+                    }}
                   />
                   <div className="card-body">
                     <h2

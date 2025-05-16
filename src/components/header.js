@@ -42,19 +42,6 @@ function Header() {
               Home
             </Link>
           </li>
-          <li>
-            <Link
-              to="/venues"
-              style={{
-                color: "#4A90E2",
-                fontFamily: "Poppins, sans-serif",
-                fontWeight: "600",
-                textDecoration: "none",
-              }}
-            >
-              Venues
-            </Link>
-          </li>
           {user ? (
             <>
               {user.venueManager && (

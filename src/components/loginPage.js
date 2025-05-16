@@ -38,7 +38,12 @@ function LoginPage() {
         navigate("/profile");
       }, 2000);
     } else {
-      setError(result.error || "Failed to log in. Please try again.");
+      // specific error handling 401 (wrong psw or mail)
+      if (result.error && result.error.includes("401")) {
+        setError("Invalid email or password. Please try again.");
+      } else {
+        setError(result.error || "Failed to log in. Please try again.");
+      }
     }
   };
 

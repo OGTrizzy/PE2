@@ -9,16 +9,23 @@ export const API_VENUES = `${API_HOLIDAZE}/venues`;
 export const API_KEY = "e91a1880-1d99-40a4-a44a-c3d808c11cb0";
 
 // helper function to fetch profile data
-const fetchProfile = async (name, token) => {
+export const fetchProfile = async (name, token) => {
+  if (!name || !token) {
+    throw new Error("Name and token are required to fetch profile.");
+  }
+
   try {
-    const response = await fetch(`${API_PROFILES}/${name}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-        "X-Noroff-API-Key": API_KEY,
-      },
-    });
+    const response = await fetch(
+      `${API_PROFILES}/${name}?_bookings=true&_venues=true`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "X-Noroff-API-Key": API_KEY,
+        },
+      }
+    );
 
     if (!response.ok) {
       const errorData = await response.json();
@@ -34,6 +41,26 @@ const fetchProfile = async (name, token) => {
     throw error;
   }
 };
+
+// update profile
+export async function updateProfile(name, token, updates) {
+  const response = await fetch(`${API_PROFILES}/${name}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      "X-Noroff-API-Key": API_KEY,
+    },
+    body: JSON.stringify(updates),
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! Status: ${response.status}`);
+  }
+
+  const result = await response.json();
+  return result.data || result; // Returnerer 'data' hvis til stede, ellers hele resultatet
+}
 
 // register new user
 export const registerUser = async (userData) => {
@@ -73,6 +100,7 @@ export const loginUser = async (credentials) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "X-Noroff-API-Key": API_KEY,
       },
       body: JSON.stringify({
         email: credentials.email,
@@ -202,7 +230,7 @@ export const fetchProfileBookings = async (name) => {
 export const fetchVenueById = async (venueId) => {
   const token = localStorage.getItem("token");
   try {
-    const response = await fetch(`${API_VENUES}/${venueId}`, {
+    const response = await fetch(`${API_VENUES}/${venueId}?_bookings=true`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -240,6 +268,7 @@ export const createBooking = async (bookingData) => {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
+        "X-Noroff-API-Key": API_KEY,
       },
       body: JSON.stringify(bookingData),
     });
@@ -275,6 +304,7 @@ export const fetchBookingById = async (bookingId) => {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
+        "X-Noroff-API-Key": API_KEY,
       },
     });
 
@@ -309,6 +339,7 @@ export const updateBooking = async (bookingId, bookingData) => {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
+        "X-Noroff-API-Key": API_KEY,
       },
       body: JSON.stringify(bookingData),
     });
@@ -344,6 +375,7 @@ export const deleteBooking = async (bookingId) => {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
+        "X-Noroff-API-Key": API_KEY,
       },
     });
 
@@ -386,6 +418,7 @@ export const createVenue = async (venueData) => {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
+        "X-Noroff-API-Key": API_KEY,
       },
       body: JSON.stringify(venueData),
     });
@@ -430,6 +463,7 @@ export const updateVenue = async (venueId, venueData) => {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
+        "X-Noroff-API-Key": API_KEY,
       },
       body: JSON.stringify(venueData),
     });
@@ -450,8 +484,7 @@ export const updateVenue = async (venueId, venueData) => {
 };
 
 // delete venue
-export const deleteVenue = async (venueId) => {
-  const token = localStorage.getItem("token");
+export const deleteVenue = async (venueId, token) => {
   const user = JSON.parse(localStorage.getItem("user"));
 
   if (!token) {
@@ -474,6 +507,7 @@ export const deleteVenue = async (venueId) => {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
+        "X-Noroff-API-Key": API_KEY,
       },
     });
 

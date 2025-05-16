@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { registerUser } from "../api/auth";
+import Header from "../components/header";
 
 function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -11,6 +12,7 @@ function RegisterPage() {
   });
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -35,6 +37,9 @@ function RegisterPage() {
     const result = await registerUser(userData);
     if (result.success) {
       setMessage("Registration successful! You can now log in.");
+      setTimeout(() => {
+        navigate("/login");
+      }, 1000);
     } else {
       setError(result.error || "Failed to register. Please try again.");
     }
@@ -42,74 +47,7 @@ function RegisterPage() {
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#F5F5F5" }}>
-      <header className="p-4 d-flex justify-content-between align-items-center">
-        <h1
-          style={{
-            fontFamily: "Poppins, sans-serif",
-            fontWeight: "bold",
-            color: "#FF6F61",
-            fontSize: "1.5rem",
-          }}
-        >
-          Holidaze
-        </h1>
-        <nav>
-          <ul className="d-flex list-unstyled gap-3 m-0">
-            <li>
-              <Link
-                to="/"
-                style={{
-                  color: "#4A90E2",
-                  fontFamily: "Poppins, sans-serif",
-                  fontWeight: "600",
-                  textDecoration: "none",
-                }}
-              >
-                Home
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/venues"
-                style={{
-                  color: "#4A90E2",
-                  fontFamily: "Poppins, sans-serif",
-                  fontWeight: "600",
-                  textDecoration: "none",
-                }}
-              >
-                Venues
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/login"
-                style={{
-                  color: "#4A90E2",
-                  fontFamily: "Poppins, sans-serif",
-                  fontWeight: "600",
-                  textDecoration: "none",
-                }}
-              >
-                Login
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/register"
-                style={{
-                  color: "#4A90E2",
-                  fontFamily: "Poppins, sans-serif",
-                  fontWeight: "600",
-                  textDecoration: "none",
-                }}
-              >
-                Register
-              </Link>
-            </li>
-          </ul>
-        </nav>
-      </header>
+      <Header />
       <main className="p-4" style={{ maxWidth: "500px", margin: "0 auto" }}>
         <h2
           style={{
