@@ -8,24 +8,26 @@ function Header() {
   return (
     <header className="p-4 d-flex justify-content-between align-items-center">
       <div className="d-flex align-items-center gap-3">
-        {user && (
-          <img
-            src={user.avatar?.url || "https://via.placeholder.com/40"}
-            alt="Profile"
-            className="rounded-circle"
-            style={{ width: "40px", height: "40px", objectFit: "cover" }}
-          />
-        )}
-        <h1
+        <div
           style={{
-            fontFamily: "Poppins, sans-serif",
-            fontWeight: "bold",
-            color: "#FF6F61",
-            fontSize: "1.5rem",
+            borderRadius: "10px",
+            overflow: "hidden",
           }}
         >
-          Holidaze
-        </h1>
+          <img
+            src="logo.png"
+            alt="Logo"
+            style={{
+              height: "100px",
+              objectFit: "contain",
+              display: "block",
+            }}
+            onError={(e) => {
+              console.error("Logo image failed to load:", e);
+              e.target.src = "https://via.placeholder.com/150x40";
+            }}
+          />
+        </div>
       </div>
       <nav>
         <ul className="d-flex list-unstyled gap-3 m-0">

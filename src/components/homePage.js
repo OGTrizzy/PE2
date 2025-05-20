@@ -8,10 +8,19 @@ function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
 
+  // function to sort venues by date created
+  const sortVenuesByCreatedDate = (venues) => {
+    return [...venues].sort(
+      (a, b) => new Date(b.created) - new Date(a.created)
+    );
+  };
+
   useEffect(() => {
     const getVenues = async () => {
+      setLoading(true);
       const data = await searchVenues("");
-      setFilteredVenues(data);
+      const sortedData = sortVenuesByCreatedDate(data);
+      setFilteredVenues(sortedData);
       setLoading(false);
     };
     getVenues();
@@ -21,7 +30,8 @@ function HomePage() {
     e.preventDefault();
     setLoading(true);
     const results = await searchVenues(searchQuery);
-    setFilteredVenues(results);
+    const sortedResults = sortVenuesByCreatedDate(results);
+    setFilteredVenues(sortedResults);
     setLoading(false);
   };
 
