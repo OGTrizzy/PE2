@@ -59,7 +59,7 @@ export async function updateProfile(name, token, updates) {
   }
 
   const result = await response.json();
-  return result.data || result; // Returnerer 'data' hvis til stede, ellers hele resultatet
+  return result.data || result; // Returning 'data' if its here, else whole result
 }
 
 // register new user

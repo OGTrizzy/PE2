@@ -1,13 +1,20 @@
 import { useState, useEffect, useContext } from "react";
 import { Link } from "react-router-dom";
 import { AuthContext } from "../context/authContext";
-import { fetchProfile, updateProfile, deleteVenue } from "../api/auth";
+import {
+  fetchProfile,
+  updateProfile,
+  deleteVenue,
+  fetchVenueById,
+  fetchBookingById,
+} from "../api/auth";
 import Header from "../components/header.js";
 
 function ProfilePage() {
   const { user: contextUser } = useContext(AuthContext);
   const [profileData, setProfileData] = useState(null);
   const [localUser, setLocalUser] = useState(null);
+  const [isVenueManager, setIsVenueManager] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -15,6 +22,7 @@ function ProfilePage() {
     avatar: { url: "" },
     bio: "",
   });
+  const [upcomingBookings, setUpcomingBookings] = useState([]);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -22,6 +30,7 @@ function ProfilePage() {
       try {
         const parsedUser = JSON.parse(storedUser);
         setLocalUser(parsedUser);
+        setIsVenueManager(parsedUser?.venueManager || false);
       } catch (err) {
         console.error("Error parsing user from localStorage:", err);
         setError("Invalid user data in localStorage.");
@@ -34,7 +43,7 @@ function ProfilePage() {
   }, []);
 
   useEffect(() => {
-    const loadProfile = async () => {
+    const loadProfileAndBookings = async () => {
       if (!localUser) {
         return;
       }
@@ -50,7 +59,9 @@ function ProfilePage() {
           return;
         }
 
+        // get userdata
         const data = await fetchProfile(name, token);
+        console.log("Profile data:", data);
         setProfileData(
           data || { bookings: [], venues: [], avatar: {}, bio: "" }
         );
@@ -58,6 +69,68 @@ function ProfilePage() {
           avatar: { url: data.avatar?.url || "" },
           bio: data.bio || "",
         });
+        setIsVenueManager(
+          data.venueManager || localUser?.venueManager || false
+        );
+
+        // get booking for every venues (only for managers)
+        if (isVenueManager) {
+          const venueBookings = await Promise.all(
+            (data.venues || []).map(async (venue) => {
+              try {
+                // get venue with bookings to get booking id
+                const venueData = await fetchVenueById(venue.id);
+                console.log(`Venue ${venue.name} data:`, venueData);
+
+                // get details of every booking
+                const bookings = await Promise.all(
+                  (venueData.bookings || []).map(async (booking) => {
+                    try {
+                      const bookingDetails = await fetchBookingById(booking.id);
+                      console.log(
+                        `Booking data for ID ${booking.id}:`,
+                        bookingDetails
+                      );
+                      if (bookingDetails.success) {
+                        return {
+                          ...bookingDetails.data,
+                          venueName: venue.name,
+                          venuePrice: venue.price,
+                        };
+                      }
+                      return null;
+                    } catch (err) {
+                      console.error(
+                        `Error fetching booking ${booking.id}:`,
+                        err
+                      );
+                      return null;
+                    }
+                  })
+                );
+
+                return bookings.filter((booking) => booking !== null);
+              } catch (err) {
+                console.error(
+                  `Error fetching bookings for venue ${venue.id}:`,
+                  err
+                );
+                return [];
+              }
+            })
+          );
+
+          const allBookings = venueBookings.flat();
+          console.log("All bookings before filtering:", allBookings);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const filteredBookings = allBookings.filter(
+            (booking) =>
+              new Date(booking.dateFrom).setHours(0, 0, 0, 0) >= today
+          );
+          console.log("Filtered upcoming bookings:", filteredBookings);
+          setUpcomingBookings(filteredBookings);
+        }
       } catch (err) {
         setError(`Failed to fetch profile: ${err.message}`);
         console.error("Error loading profile:", err);
@@ -67,9 +140,9 @@ function ProfilePage() {
     };
 
     if (localUser) {
-      loadProfile();
+      loadProfileAndBookings();
     }
-  }, [localUser]);
+  }, [localUser, isVenueManager]);
 
   const handleEditChange = (e) => {
     const { name, value } = e.target;
@@ -139,6 +212,13 @@ function ProfilePage() {
       setError("Error deleting venue. Please try again.");
       console.error("Delete venue error:", err);
     }
+  };
+
+  const calculateTotalPrice = (booking, venuePrice) => {
+    const dateFrom = new Date(booking.dateFrom);
+    const dateTo = new Date(booking.dateTo);
+    const nights = Math.ceil((dateTo - dateFrom) / (1000 * 60 * 60 * 24));
+    return nights * venuePrice;
   };
 
   if (loading) {
@@ -252,13 +332,7 @@ function ProfilePage() {
                 }}
               >
                 <strong>Role:</strong>{" "}
-                {profileData.venueManager !== undefined
-                  ? profileData.venueManager
-                    ? "Venue Manager"
-                    : "Customer"
-                  : localUser?.venueManager
-                  ? "Venue Manager"
-                  : "Customer"}
+                {isVenueManager ? "Venue Manager" : "Customer"}
               </p>
               {isEditing ? (
                 <div className="mb-3">
@@ -347,98 +421,9 @@ function ProfilePage() {
           </div>
         </div>
 
-        {/* booking section */}
-        <div className="mb-4">
-          <h3
-            style={{
-              fontFamily: "Poppins, sans-serif",
-              fontWeight: "600",
-              color: "#333333",
-              fontSize: "1.5rem",
-              marginBottom: "1rem",
-            }}
-          >
-            My Bookings
-          </h3>
-          {profileData.bookings?.length === 0 ? (
-            <p
-              style={{
-                fontFamily: "Open Sans, sans-serif",
-                color: "#333333",
-                fontSize: "1rem",
-              }}
-            >
-              You have no bookings yet.
-            </p>
-          ) : (
-            <div className="row row-cols-1 row-cols-md-3 g-4">
-              {profileData.bookings?.map((booking) => (
-                <div key={booking.id} className="col">
-                  <div className="card h-100 shadow-sm">
-                    <div className="card-body">
-                      <h4
-                        className="card-title"
-                        style={{
-                          fontFamily: "Poppins, sans-serif",
-                          fontWeight: "bold",
-                          color: "#333333",
-                          fontSize: "1.125rem",
-                        }}
-                      >
-                        {booking.venue?.name || "Unknown Venue"}
-                      </h4>
-                      <p
-                        style={{
-                          fontFamily: "Open Sans, sans-serif",
-                          color: "#333333",
-                          fontSize: "0.875rem",
-                        }}
-                      >
-                        <strong>From:</strong>{" "}
-                        {new Date(booking.dateFrom).toLocaleDateString()}
-                      </p>
-                      <p
-                        style={{
-                          fontFamily: "Open Sans, sans-serif",
-                          color: "#333333",
-                          fontSize: "0.875rem",
-                        }}
-                      >
-                        <strong>To:</strong>{" "}
-                        {new Date(booking.dateTo).toLocaleDateString()}
-                      </p>
-                      <p
-                        style={{
-                          fontFamily: "Open Sans, sans-serif",
-                          color: "#333333",
-                          fontSize: "0.875rem",
-                        }}
-                      >
-                        <strong>Guests:</strong> {booking.guests}
-                      </p>
-                      <Link
-                        to={`/venue/${booking.venue?.id}`}
-                        className="btn w-100"
-                        style={{
-                          backgroundColor: "#FF6F61",
-                          color: "white",
-                          fontFamily: "Poppins, sans-serif",
-                          fontWeight: "bold",
-                        }}
-                      >
-                        View Venue
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* venues section (for managers) */}
-        {profileData.venueManager && (
-          <div className="mb-4">
+        <div className="d-flex gap-4 flex-wrap">
+          {/* booking section */}
+          <div className="flex-grow-1" style={{ minWidth: "300px" }}>
             <h3
               style={{
                 fontFamily: "Poppins, sans-serif",
@@ -448,9 +433,9 @@ function ProfilePage() {
                 marginBottom: "1rem",
               }}
             >
-              My Venues
+              My Bookings
             </h3>
-            {profileData.venues?.length === 0 ? (
+            {profileData.bookings?.length === 0 ? (
               <p
                 style={{
                   fontFamily: "Open Sans, sans-serif",
@@ -458,40 +443,13 @@ function ProfilePage() {
                   fontSize: "1rem",
                 }}
               >
-                You have no venues yet.{" "}
-                <Link
-                  to="/create-venue"
-                  style={{
-                    color: "#FF6F61",
-                    fontFamily: "Open Sans, sans-serif",
-                    textDecoration: "underline",
-                  }}
-                >
-                  Create one now!
-                </Link>
+                You have no bookings yet.
               </p>
             ) : (
-              <div className="row row-cols-1 row-cols-md-3 g-4">
-                {profileData.venues?.map((venue) => (
-                  <div key={venue.id} className="col">
+              <div className="row row-cols-1 g-4">
+                {profileData.bookings?.map((booking) => (
+                  <div key={booking.id} className="col">
                     <div className="card h-100 shadow-sm">
-                      <img
-                        src={
-                          venue.media && venue.media[0]
-                            ? typeof venue.media[0] === "string"
-                              ? venue.media[0]
-                              : venue.media[0]?.url ||
-                                "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?ixlib=rb-4.0.3&q=85&fm=jpg&crop=entropy&cs=srgb"
-                            : "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?ixlib=rb-4.0.3&q=85&fm=jpg&crop=entropy&cs=srgb"
-                        }
-                        alt={venue.name}
-                        className="card-img-top"
-                        style={{ height: "160px", objectFit: "cover" }}
-                        onError={(e) =>
-                          (e.target.src =
-                            "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?ixlib=rb-4.0.3&q=85&fm=jpg&crop=entropy&cs=srgb")
-                        }
-                      />
                       <div className="card-body">
                         <h4
                           className="card-title"
@@ -502,7 +460,7 @@ function ProfilePage() {
                             fontSize: "1.125rem",
                           }}
                         >
-                          {venue.name}
+                          {booking.venue?.name || "Unknown Venue"}
                         </h4>
                         <p
                           style={{
@@ -511,34 +469,30 @@ function ProfilePage() {
                             fontSize: "0.875rem",
                           }}
                         >
-                          ${venue.price}/night
+                          <strong>From:</strong>{" "}
+                          {new Date(booking.dateFrom).toLocaleDateString()}
+                        </p>
+                        <p
+                          style={{
+                            fontFamily: "Open Sans, sans-serif",
+                            color: "#333333",
+                            fontSize: "0.875rem",
+                          }}
+                        >
+                          <strong>To:</strong>{" "}
+                          {new Date(booking.dateTo).toLocaleDateString()}
+                        </p>
+                        <p
+                          style={{
+                            fontFamily: "Open Sans, sans-serif",
+                            color: "#333333",
+                            fontSize: "0.875rem",
+                          }}
+                        >
+                          <strong>Guests:</strong> {booking.guests}
                         </p>
                         <Link
-                          to={`/venue/${venue.id}`}
-                          className="btn w-100 mb-2"
-                          style={{
-                            backgroundColor: "#FF6F61",
-                            color: "white",
-                            fontFamily: "Poppins, sans-serif",
-                            fontWeight: "bold",
-                          }}
-                        >
-                          View Details
-                        </Link>
-                        <Link
-                          to={`/venue/${venue.id}/edit`}
-                          className="btn w-100 mb-2"
-                          style={{
-                            backgroundColor: "#4A90E2",
-                            color: "white",
-                            fontFamily: "Poppins, sans-serif",
-                            fontWeight: "bold",
-                          }}
-                        >
-                          Edit Venue
-                        </Link>
-                        <button
-                          onClick={() => handleDeleteVenue(venue.id)}
+                          to={`/venue/${booking.venue?.id}`}
                           className="btn w-100"
                           style={{
                             backgroundColor: "#FF6F61",
@@ -547,8 +501,8 @@ function ProfilePage() {
                             fontWeight: "bold",
                           }}
                         >
-                          Delete Venue
-                        </button>
+                          View Venue
+                        </Link>
                       </div>
                     </div>
                   </div>
@@ -556,7 +510,210 @@ function ProfilePage() {
               </div>
             )}
           </div>
-        )}
+
+          {/* venues section (for managers) */}
+          {isVenueManager && (
+            <div className="flex-grow-1" style={{ minWidth: "300px" }}>
+              <h3
+                style={{
+                  fontFamily: "Poppins, sans-serif",
+                  fontWeight: "600",
+                  color: "#333333",
+                  fontSize: "1.5rem",
+                  marginBottom: "1rem",
+                }}
+              >
+                My Venues
+              </h3>
+              {profileData.venues?.length === 0 ? (
+                <p
+                  style={{
+                    fontFamily: "Open Sans, sans-serif",
+                    color: "#333333",
+                    fontSize: "1rem",
+                  }}
+                >
+                  You have no venues yet.{" "}
+                  <Link
+                    to="/create-venue"
+                    style={{
+                      color: "#FF6F61",
+                      fontFamily: "Open Sans, sans-serif",
+                      textDecoration: "underline",
+                    }}
+                  >
+                    Create one now!
+                  </Link>
+                </p>
+              ) : (
+                <div className="row row-cols-1 g-4">
+                  {profileData.venues?.map((venue) => (
+                    <div key={venue.id} className="col">
+                      <div className="card h-100 shadow-sm">
+                        <img
+                          src={
+                            venue.media && venue.media[0]
+                              ? typeof venue.media[0] === "string"
+                                ? venue.media[0]
+                                : venue.media[0]?.url ||
+                                  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?ixlib=rb-4.0.3&q=85&fm=jpg&crop=entropy&cs=srgb"
+                              : "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?ixlib=rb-4.0.3&q=85&fm=jpg&crop=entropy&cs=srgb"
+                          }
+                          alt={venue.name}
+                          className="card-img-top"
+                          style={{ height: "160px", objectFit: "cover" }}
+                          onError={(e) =>
+                            (e.target.src =
+                              "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?ixlib=rb-4.0.3&q=85&fm=jpg&crop=entropy&cs=srgb")
+                          }
+                        />
+                        <div className="card-body">
+                          <h4
+                            className="card-title"
+                            style={{
+                              fontFamily: "Poppins, sans-serif",
+                              fontWeight: "bold",
+                              color: "#333333",
+                              fontSize: "1.125rem",
+                            }}
+                          >
+                            {venue.name}
+                          </h4>
+                          <p
+                            style={{
+                              fontFamily: "Open Sans, sans-serif",
+                              color: "#333333",
+                              fontSize: "0.875rem",
+                            }}
+                          >
+                            ${venue.price}/night
+                          </p>
+                          <Link
+                            to={`/venue/${venue.id}`}
+                            className="btn w-100 mb-2"
+                            style={{
+                              backgroundColor: "#FF6F61",
+                              color: "white",
+                              fontFamily: "Poppins, sans-serif",
+                              fontWeight: "bold",
+                            }}
+                          >
+                            View Details
+                          </Link>
+                          <Link
+                            to={`/venue/${venue.id}/edit`}
+                            className="btn w-100 mb-2"
+                            style={{
+                              backgroundColor: "#4A90E2",
+                              color: "white",
+                              fontFamily: "Poppins, sans-serif",
+                              fontWeight: "bold",
+                            }}
+                          >
+                            Edit Venue
+                          </Link>
+                          <button
+                            onClick={() => handleDeleteVenue(venue.id)}
+                            className="btn w-100"
+                            style={{
+                              backgroundColor: "#FF6F61",
+                              color: "white",
+                              fontFamily: "Poppins, sans-serif",
+                              fontWeight: "bold",
+                            }}
+                          >
+                            Delete Venue
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* upcoming bookings for my menues for managers only */}
+          {isVenueManager && (
+            <div className="flex-grow-1" style={{ minWidth: "300px" }}>
+              <h3
+                style={{
+                  fontFamily: "Poppins, sans-serif",
+                  fontWeight: "600",
+                  color: "#333333",
+                  fontSize: "1.5rem",
+                  marginBottom: "1rem",
+                }}
+              >
+                Upcoming Bookings for My Venues
+              </h3>
+              {upcomingBookings.length === 0 ? (
+                <p
+                  style={{
+                    fontFamily: "Open Sans, sans-serif",
+                    color: "#333333",
+                    fontSize: "1rem",
+                  }}
+                >
+                  No upcoming bookings for your venues.
+                </p>
+              ) : (
+                <div className="row row-cols-1 g-4">
+                  {upcomingBookings.map((booking) => (
+                    <div key={booking.id} className="col">
+                      <div className="card h-100 shadow-sm">
+                        <div className="card-body">
+                          <h4
+                            className="card-title"
+                            style={{
+                              fontFamily: "Poppins, sans-serif",
+                              fontWeight: "bold",
+                              color: "#333333",
+                              fontSize: "1.125rem",
+                            }}
+                          >
+                            {booking.venueName}
+                          </h4>
+                          <p
+                            style={{
+                              fontFamily: "Open Sans, sans-serif",
+                              color: "#333333",
+                              fontSize: "0.875rem",
+                            }}
+                          >
+                            <strong>Date:</strong>{" "}
+                            {new Date(booking.dateFrom).toLocaleDateString()} to{" "}
+                            {new Date(booking.dateTo).toLocaleDateString()}
+                          </p>
+                          <p
+                            style={{
+                              fontFamily: "Open Sans, sans-serif",
+                              color: "#333333",
+                              fontSize: "0.875rem",
+                            }}
+                          >
+                            <strong>Guests:</strong> {booking.guests}
+                          </p>
+                          <p
+                            style={{
+                              fontFamily: "Open Sans, sans-serif",
+                              color: "#333333",
+                              fontSize: "0.875rem",
+                              fontWeight: "bold",
+                            }}
+                          >
+                            <strong>Total:</strong> $
+                            {calculateTotalPrice(booking, booking.venuePrice)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </main>
     </div>
   );
