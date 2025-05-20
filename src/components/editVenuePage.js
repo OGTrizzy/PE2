@@ -1,9 +1,12 @@
-import { useState, useEffect } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useState, useEffect, useContext } from "react";
+import { Link, useParams, useNavigate } from "react-router-dom";
+import { AuthContext } from "../context/authContext";
 import { fetchVenueById } from "../api/venues";
 import { updateVenue } from "../api/auth";
+import Header from "../components/header";
 
 function EditVenuePage() {
+  const { user } = useContext(AuthContext);
   const { id } = useParams();
   const navigate = useNavigate();
   const [formData, setFormData] = useState(null);
@@ -13,63 +16,76 @@ function EditVenuePage() {
 
   useEffect(() => {
     const getVenue = async () => {
-      const venue = await fetchVenueById(id);
-      if (venue && venue.data) {
-        setFormData({
-          name: venue.data.name || "",
-          description: venue.data.description || "",
-          media: venue.data.media || [""],
-          price: venue.data.price || 0,
-          maxGuests: venue.data.maxGuests || 1,
-          rating: venue.data.rating || 0,
-          meta: {
-            wifi: venue.data.meta?.wifi || false,
-            parking: venue.data.meta?.parking || false,
-            breakfast: venue.data.meta?.breakfast || false,
-            pets: venue.data.meta?.pets || false,
-          },
-          location: {
-            address: venue.data.location?.address || "",
-            city: venue.data.location?.city || "",
-            zip: venue.data.location?.zip || "",
-            country: venue.data.location?.country || "",
-            continent: venue.data.location?.continent || "",
-            lat: venue.data.location?.lat || 0,
-            lng: venue.data.location?.lng || 0,
-          },
-        });
-      } else {
-        setError("Venue not found.");
+      if (!user) {
+        setError("You must be logged in to edit a venue.");
+        setLoading(false);
+        return;
       }
-      setLoading(false);
+
+      setLoading(true);
+      try {
+        const token = localStorage.getItem("token");
+        const venue = await fetchVenueById(id, token);
+        if (venue.success && venue.data) {
+          setFormData({
+            name: venue.data.name || "",
+            description: venue.data.description || "",
+            media: Array.isArray(venue.data.media)
+              ? venue.data.media
+              : [{ url: "", alt: "" }],
+            price: venue.data.price || 0,
+            maxGuests: venue.data.maxGuests || 1,
+            rating: venue.data.rating || 0,
+            meta: {
+              wifi: venue.data.meta?.wifi || false,
+              parking: venue.data.meta?.parking || false,
+              breakfast: venue.data.meta?.breakfast || false,
+              pets: venue.data.meta?.pets || false,
+            },
+            location: {
+              address: venue.data.location?.address || "",
+              city: venue.data.location?.city || "",
+              zip: venue.data.location?.zip || "",
+              country: venue.data.location?.country || "",
+              continent: venue.data.location?.continent || "",
+              lat: venue.data.location?.lat || 0,
+              lng: venue.data.location?.lng || 0,
+            },
+          });
+        } else {
+          setError(venue.error || "Venue not found.");
+        }
+      } catch (err) {
+        setError(`Error fetching venue: ${err.message}`);
+        console.error("Fetch venue error:", err);
+      } finally {
+        setLoading(false);
+      }
     };
     getVenue();
-  }, [id]);
+  }, [id, user]);
 
-  const handleChange = (e) => {
+  const handleChange = (e, index) => {
     const { name, value, type, checked } = e.target;
     if (name.startsWith("meta.")) {
       const metaField = name.split(".")[1];
       setFormData({
         ...formData,
-        meta: {
-          ...formData.meta,
-          [metaField]: type === "checkbox" ? checked : value,
-        },
+        meta: { ...formData.meta, [metaField]: checked },
       });
     } else if (name.startsWith("location.")) {
       const locationField = name.split(".")[1];
       setFormData({
         ...formData,
-        location: {
-          ...formData.location,
-          [locationField]: value,
-        },
+        location: { ...formData.location, [locationField]: value },
       });
-    } else if (name === "media") {
+    } else if (name.startsWith("media.")) {
+      const mediaField = name.split(".")[1];
+      const newMedia = [...formData.media];
+      newMedia[index] = { ...newMedia[index], [mediaField]: value };
       setFormData({
         ...formData,
-        media: [value],
+        media: newMedia,
       });
     } else {
       setFormData({
@@ -79,138 +95,91 @@ function EditVenuePage() {
     }
   };
 
+  const addMedia = () => {
+    setFormData({
+      ...formData,
+      media: [...formData.media, { url: "", alt: "" }],
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage(null);
     setError(null);
 
+    if (!user || !user.venueManager) {
+      setError("You must be a venue manager to edit a venue.");
+      return;
+    }
+
+    if (formData.price <= 0 || formData.maxGuests <= 0) {
+      setError("Price and max guests must be greater than 0.");
+      return;
+    }
+
+    const filteredMedia = formData.media.filter(
+      (media) => media.url && media.url.trim() !== ""
+    );
     const venueData = {
       name: formData.name,
       description: formData.description,
-      media: formData.media.filter((url) => url.trim() !== ""),
+      ...(filteredMedia.length > 0 && { media: filteredMedia }), // exclude if empty
       price: formData.price,
       maxGuests: formData.maxGuests,
-      rating: formData.rating,
+      rating: formData.rating !== undefined ? formData.rating : 0, // set a standard value
       meta: formData.meta,
-      location: formData.location,
+      location: {
+        ...formData.location,
+        lat: formData.location.lat === 0 ? undefined : formData.location.lat,
+        lng: formData.location.lng === 0 ? undefined : formData.location.lng,
+      },
     };
 
-    const result = await updateVenue(id, venueData);
-    if (result.success) {
-      setMessage("Venue updated successfully!");
-      setTimeout(() => {
-        navigate(`/venue/${id}`);
-      }, 2000);
-    } else {
-      setError(result.error || "Failed to update venue. Please try again.");
+    try {
+      const result = await updateVenue(id, venueData);
+      if (result.success) {
+        setMessage("Venue updated successfully!");
+        setTimeout(() => navigate(`/venue/${id}`), 2000);
+      } else {
+        setError(result.error || "Failed to update venue. Please try again.");
+      }
+    } catch (err) {
+      setError(`Error updating venue: ${err.message}`);
+      console.error("Update venue error:", err);
     }
   };
 
   if (loading) {
     return (
-      <p
-        className="text-center"
-        style={{ fontFamily: "Open Sans, sans-serif", color: "#333333" }}
-      >
-        Loading venue...
-      </p>
+      <div style={{ minHeight: "100vh", backgroundColor: "#F5F5F5" }}>
+        <Header />
+        <p
+          className="text-center"
+          style={{ fontFamily: "Open Sans, sans-serif", color: "#333333" }}
+        >
+          Loading venue...
+        </p>
+      </div>
     );
   }
 
-  if (!formData) {
+  if (error || !formData) {
     return (
-      <p
-        className="text-center"
-        style={{ fontFamily: "Open Sans, sans-serif", color: "#333333" }}
-      >
-        Venue not found.
-      </p>
+      <div style={{ minHeight: "100vh", backgroundColor: "#F5F5F5" }}>
+        <Header />
+        <p
+          className="text-center alert alert-danger"
+          style={{ fontFamily: "Open Sans, sans-serif", color: "#333333" }}
+        >
+          {error || "Venue data not available."}
+        </p>
+      </div>
     );
   }
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#F5F5F5" }}>
-      <header className="p-4 d-flex justify-content-between align-items-center">
-        <h1
-          style={{
-            fontFamily: "Poppins, sans-serif",
-            fontWeight: "bold",
-            color: "#FF6F61",
-            fontSize: "1.5rem",
-          }}
-        >
-          Holidaze
-        </h1>
-        <nav>
-          <ul className="d-flex list-unstyled gap-3 m-0">
-            <li>
-              <Link
-                to="/"
-                style={{
-                  color: "#4A90E2",
-                  fontFamily: "Poppins, sans-serif",
-                  fontWeight: "600",
-                  textDecoration: "none",
-                }}
-              >
-                Home
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/venues"
-                style={{
-                  color: "#4A90E2",
-                  fontFamily: "Poppins, sans-serif",
-                  fontWeight: "600",
-                  textDecoration: "none",
-                }}
-              >
-                Venues
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/login"
-                style={{
-                  color: "#4A90E2",
-                  fontFamily: "Poppins, sans-serif",
-                  fontWeight: "600",
-                  textDecoration: "none",
-                }}
-              >
-                Login
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/register"
-                style={{
-                  color: "#4A90E2",
-                  fontFamily: "Poppins, sans-serif",
-                  fontWeight: "600",
-                  textDecoration: "none",
-                }}
-              >
-                Register
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/create-venue"
-                style={{
-                  color: "#4A90E2",
-                  fontFamily: "Poppins, sans-serif",
-                  fontWeight: "600",
-                  textDecoration: "none",
-                }}
-              >
-                Create Venue
-              </Link>
-            </li>
-          </ul>
-        </nav>
-      </header>
+      <Header />
       <main className="p-4" style={{ maxWidth: "960px", margin: "0 auto" }}>
         <h2
           style={{
@@ -255,7 +224,7 @@ function EditVenuePage() {
               id="name"
               name="name"
               value={formData.name}
-              onChange={handleChange}
+              onChange={(e) => handleChange(e, 0)}
               className="form-control"
               style={{
                 fontFamily: "Open Sans, sans-serif",
@@ -278,7 +247,7 @@ function EditVenuePage() {
               id="description"
               name="description"
               value={formData.description}
-              onChange={handleChange}
+              onChange={(e) => handleChange(e, 0)}
               className="form-control"
               style={{
                 fontFamily: "Open Sans, sans-serif",
@@ -290,29 +259,71 @@ function EditVenuePage() {
               required
             />
           </div>
-          <div className="mb-3">
-            <label
-              htmlFor="media"
-              className="form-label"
-              style={{ fontFamily: "Open Sans, sans-serif", color: "#333333" }}
-            >
-              Media URL
-            </label>
-            <input
-              type="url"
-              id="media"
-              name="media"
-              value={formData.media[0]}
-              onChange={handleChange}
-              className="form-control"
-              style={{
-                fontFamily: "Open Sans, sans-serif",
-                color: "#333333",
-                backgroundColor: "#F5F5F5",
-                borderColor: "#333333",
-              }}
-            />
-          </div>
+          {formData.media.map((media, index) => (
+            <div key={index} className="mb-3">
+              <label
+                htmlFor={`media.url-${index}`}
+                className="form-label"
+                style={{
+                  fontFamily: "Open Sans, sans-serif",
+                  color: "#333333",
+                }}
+              >
+                Media URL {index + 1}
+              </label>
+              <input
+                type="url"
+                id={`media.url-${index}`}
+                name="media.url"
+                value={media.url}
+                onChange={(e) => handleChange(e, index)}
+                className="form-control mb-2"
+                style={{
+                  fontFamily: "Open Sans, sans-serif",
+                  color: "#333333",
+                  backgroundColor: "#F5F5F5",
+                  borderColor: "#333333",
+                }}
+              />
+              <label
+                htmlFor={`media.alt-${index}`}
+                className="form-label"
+                style={{
+                  fontFamily: "Open Sans, sans-serif",
+                  color: "#333333",
+                }}
+              >
+                Media Alt Text {index + 1}
+              </label>
+              <input
+                type="text"
+                id={`media.alt-${index}`}
+                name="media.alt"
+                value={media.alt}
+                onChange={(e) => handleChange(e, index)}
+                className="form-control mb-2"
+                style={{
+                  fontFamily: "Open Sans, sans-serif",
+                  color: "#333333",
+                  backgroundColor: "#F5F5F5",
+                  borderColor: "#333333",
+                }}
+              />
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={addMedia}
+            className="btn btn-secondary mb-3"
+            style={{
+              fontFamily: "Poppins, sans-serif",
+              fontWeight: "bold",
+              backgroundColor: "#4A90E2",
+              color: "white",
+            }}
+          >
+            Add Another Image
+          </button>
           <div className="mb-3">
             <label
               htmlFor="price"
@@ -326,7 +337,7 @@ function EditVenuePage() {
               id="price"
               name="price"
               value={formData.price}
-              onChange={handleChange}
+              onChange={(e) => handleChange(e, 0)}
               className="form-control"
               style={{
                 fontFamily: "Open Sans, sans-serif",
@@ -334,7 +345,7 @@ function EditVenuePage() {
                 backgroundColor: "#F5F5F5",
                 borderColor: "#333333",
               }}
-              min="0"
+              min="1"
               required
             />
           </div>
@@ -351,7 +362,7 @@ function EditVenuePage() {
               id="maxGuests"
               name="maxGuests"
               value={formData.maxGuests}
-              onChange={handleChange}
+              onChange={(e) => handleChange(e, 0)}
               className="form-control"
               style={{
                 fontFamily: "Open Sans, sans-serif",
@@ -376,7 +387,7 @@ function EditVenuePage() {
               id="rating"
               name="rating"
               value={formData.rating}
-              onChange={handleChange}
+              onChange={(e) => handleChange(e, 0)}
               className="form-control"
               style={{
                 fontFamily: "Open Sans, sans-serif",
@@ -401,7 +412,7 @@ function EditVenuePage() {
                 id="wifi"
                 name="meta.wifi"
                 checked={formData.meta.wifi}
-                onChange={handleChange}
+                onChange={(e) => handleChange(e, 0)}
                 className="form-check-input"
               />
               <label
@@ -421,7 +432,7 @@ function EditVenuePage() {
                 id="parking"
                 name="meta.parking"
                 checked={formData.meta.parking}
-                onChange={handleChange}
+                onChange={(e) => handleChange(e, 0)}
                 className="form-check-input"
               />
               <label
@@ -441,7 +452,7 @@ function EditVenuePage() {
                 id="breakfast"
                 name="meta.breakfast"
                 checked={formData.meta.breakfast}
-                onChange={handleChange}
+                onChange={(e) => handleChange(e, 0)}
                 className="form-check-input"
               />
               <label
@@ -461,7 +472,7 @@ function EditVenuePage() {
                 id="pets"
                 name="meta.pets"
                 checked={formData.meta.pets}
-                onChange={handleChange}
+                onChange={(e) => handleChange(e, 0)}
                 className="form-check-input"
               />
               <label
@@ -489,7 +500,7 @@ function EditVenuePage() {
               id="address"
               name="location.address"
               value={formData.location.address}
-              onChange={handleChange}
+              onChange={(e) => handleChange(e, 0)}
               className="form-control"
               style={{
                 fontFamily: "Open Sans, sans-serif",
@@ -512,7 +523,7 @@ function EditVenuePage() {
               id="city"
               name="location.city"
               value={formData.location.city}
-              onChange={handleChange}
+              onChange={(e) => handleChange(e, 0)}
               className="form-control"
               style={{
                 fontFamily: "Open Sans, sans-serif",
@@ -535,7 +546,7 @@ function EditVenuePage() {
               id="zip"
               name="location.zip"
               value={formData.location.zip}
-              onChange={handleChange}
+              onChange={(e) => handleChange(e, 0)}
               className="form-control"
               style={{
                 fontFamily: "Open Sans, sans-serif",
@@ -558,7 +569,7 @@ function EditVenuePage() {
               id="country"
               name="location.country"
               value={formData.location.country}
-              onChange={handleChange}
+              onChange={(e) => handleChange(e, 0)}
               className="form-control"
               style={{
                 fontFamily: "Open Sans, sans-serif",
@@ -581,7 +592,7 @@ function EditVenuePage() {
               id="continent"
               name="location.continent"
               value={formData.location.continent}
-              onChange={handleChange}
+              onChange={(e) => handleChange(e, 0)}
               className="form-control"
               style={{
                 fontFamily: "Open Sans, sans-serif",
@@ -603,6 +614,18 @@ function EditVenuePage() {
           >
             Update Venue
           </button>
+          <Link
+            to={`/venue/${id}`}
+            className="btn w-100 mt-2"
+            style={{
+              backgroundColor: "#4A90E2",
+              color: "white",
+              fontFamily: "Poppins, sans-serif",
+              fontWeight: "bold",
+            }}
+          >
+            Cancel
+          </Link>
         </form>
       </main>
     </div>
