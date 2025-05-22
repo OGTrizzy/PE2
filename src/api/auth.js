@@ -102,8 +102,8 @@ export const loginUser = async (credentials) => {
       loginResponse,
       "Failed to login"
     );
-    const token = loginResult.accessToken;
-    const userName = loginResult.name;
+    const token = loginResult.data.accessToken;
+    const userName = loginResult.data.name;
 
     if (!token || !userName) {
       throw new Error("Invalid login response: Missing token or username");
@@ -167,7 +167,7 @@ export const searchProfiles = async (query) => {
 
 // fetch venues for a profile
 export const fetchProfileVenues = async (name) => {
-  const token = localStorage.getItem("accessToken");
+  const token = localStorage.getItem("token");
   if (!token) {
     return {
       success: false,
@@ -186,7 +186,7 @@ export const fetchProfileVenues = async (name) => {
 
 // fetch bookings for a profile
 export const fetchProfileBookings = async (name) => {
-  const token = localStorage.getItem("accessToken");
+  const token = localStorage.getItem("token");
   if (!token) {
     return {
       success: false,
@@ -205,7 +205,7 @@ export const fetchProfileBookings = async (name) => {
 
 // fetch a specific venue by id
 export const fetchVenueById = async (venueId) => {
-  const token = localStorage.getItem("accessToken");
+  const token = localStorage.getItem("token");
   try {
     const response = await fetch(
       `${API_CONFIG.ENDPOINTS.VENUES}/${venueId}?_bookings=true`,
@@ -223,7 +223,7 @@ export const fetchVenueById = async (venueId) => {
 
 // create a booking
 export const createBooking = async (bookingData) => {
-  const token = localStorage.getItem("accessToken");
+  const token = localStorage.getItem("token");
   if (!token) {
     return { success: false, error: "You must be logged in to book a venue." };
   }
@@ -244,7 +244,7 @@ export const createBooking = async (bookingData) => {
 
 // fetch a booking by id
 export const fetchBookingById = async (bookingId) => {
-  const token = localStorage.getItem("accessToken");
+  const token = localStorage.getItem("token");
   if (!token) {
     return {
       success: false,
@@ -270,7 +270,7 @@ export const fetchBookingById = async (bookingId) => {
 
 // update a booking
 export const updateBooking = async (bookingId, bookingData) => {
-  const token = localStorage.getItem("accessToken");
+  const token = localStorage.getItem("token");
   if (!token) {
     return {
       success: false,
@@ -297,7 +297,7 @@ export const updateBooking = async (bookingId, bookingData) => {
 
 // delete a booking
 export const deleteBooking = async (bookingId) => {
-  const token = localStorage.getItem("accessToken");
+  const token = localStorage.getItem("token");
   if (!token) {
     return {
       success: false,
@@ -323,8 +323,8 @@ export const deleteBooking = async (bookingId) => {
 
 // create a venue
 export const createVenue = async (venueData) => {
-  const token = localStorage.getItem("accessToken");
-  const user = JSON.parse(localStorage.getItem("name"));
+  const token = localStorage.getItem("token");
+  const user = JSON.parse(localStorage.getItem("user"));
 
   if (!token) {
     return {
@@ -356,8 +356,8 @@ export const createVenue = async (venueData) => {
 
 // update a venue
 export const updateVenue = async (venueId, venueData) => {
-  const token = localStorage.getItem("accessToken");
-  const user = JSON.parse(localStorage.getItem("name"));
+  const token = localStorage.getItem("token");
+  const user = JSON.parse(localStorage.getItem("user"));
 
   if (!token) {
     return {
@@ -389,8 +389,8 @@ export const updateVenue = async (venueId, venueData) => {
 
 // delete a venue
 export const deleteVenue = async (venueId) => {
-  const token = localStorage.getItem("accessToken");
-  const user = JSON.parse(localStorage.getItem("name"));
+  const token = localStorage.getItem("token");
+  const user = JSON.parse(localStorage.getItem("user"));
 
   if (!token) {
     return {

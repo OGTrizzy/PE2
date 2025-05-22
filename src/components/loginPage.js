@@ -33,7 +33,7 @@ function LoginPage() {
 
     const result = await loginUser(formData);
     if (result.success) {
-      login(result.data);
+      login(result.data, result.data.accessToken);
       setUserData(result.data);
       setMessage("Login successful!");
       setTimeout(() => {
