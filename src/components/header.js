@@ -9,24 +9,29 @@ function Header() {
     <header className="p-4 d-flex justify-content-between align-items-center">
       <div className="d-flex align-items-center gap-3">
         <div
+          className="logo-container"
           style={{
             borderRadius: "10px",
             overflow: "hidden",
           }}
         >
-          <img
-            src="logo.png"
-            alt="Logo"
-            style={{
-              height: "100px",
-              objectFit: "contain",
-              display: "block",
-            }}
-            onError={(e) => {
-              console.error("Logo image failed to load:", e);
-              e.target.src = "https://via.placeholder.com/150x40";
-            }}
-          />
+          {/* wrapping the img in a Link to make it clickable */}
+          <Link to="/">
+            <img
+              src="logo.png"
+              alt="Logo"
+              className="responsive-logo"
+              style={{
+                objectFit: "contain",
+                display: "block",
+              }}
+              onError={(e) => {
+                console.error("Logo image failed to load:", e);
+                e.target.src =
+                  "https://mir-s3-cdn-cf.behance.net/project_modules/max_1200/7a3ec529632909.55fc107b84b8c.png"; // random img if img for logo fails
+              }}
+            />
+          </Link>
         </div>
       </div>
       <nav>
@@ -121,6 +126,31 @@ function Header() {
           )}
         </ul>
       </nav>
+
+      {/* css to make the logo responsive */}
+      <style>
+        {`
+          .logo-container {
+            max-width: 100%; /* keeps it from spilling over */
+          }
+          .responsive-logo {
+            height: 100px; /* default size */
+            // cool, this is the base size—let’s scale it down on smaller screens
+          }
+          @media (max-width: 768px) {
+            .responsive-logo {
+              height: 60px; /* smaller for tablets/phones */
+              // tweak this if 60px feels too big or small, maybe try 50px
+            }
+          }
+          @media (max-width: 480px) {
+            .responsive-logo {
+              height: 40px; /* tiny for phones */
+              // adjust this too if it’s not vibing on super small screens
+            }
+          }
+        `}
+      </style>
     </header>
   );
 }

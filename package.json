@@ -2,6 +2,7 @@
   "name": "pe2",
   "version": "0.1.0",
   "private": true,
+  "homepage": "https://OGTrizzy.github.io/PE2",
   "dependencies": {
     "@fullcalendar/daygrid": "^6.1.17",
     "@fullcalendar/interaction": "^6.1.17",
@@ -11,18 +12,20 @@
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
     "bootstrap": "^5.3.5",
+    "nth-check": "^2.1.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.5.0",
     "react-scripts": "5.0.1",
-    "web-vitals": "^2.1.4",
-    "nth-check": "^2.1.1"
+    "web-vitals": "^2.1.4"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build"
   },
   "eslintConfig": {
     "extends": [
@@ -45,5 +48,8 @@
   "overrides": {
     "nth-check": "$nth-check",
     "postcss": "^8.4.38"
+  },
+  "devDependencies": {
+    "gh-pages": "^6.3.0"
   }
 }

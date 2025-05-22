@@ -4,6 +4,15 @@ import { loginUser } from "../api/auth.js";
 import { AuthContext } from "../context/authContext.js";
 import Header from "../components/header.js";
 
+// helper to update form fields
+const handleFormChange = (setFormData) => (e) => {
+  const { name, value } = e.target;
+  setFormData((prev) => ({
+    ...prev,
+    [name]: value,
+  }));
+};
+
 function LoginPage() {
   const [formData, setFormData] = useState({
     email: "",
@@ -15,14 +24,7 @@ function LoginPage() {
   const navigate = useNavigate();
   const { login } = useContext(AuthContext);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value,
-    });
-  };
-
+  // handle form submission with login logic
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage(null);
@@ -38,7 +40,7 @@ function LoginPage() {
         navigate("/profile");
       }, 2000);
     } else {
-      // specific error handling 401 (wrong psw or mail)
+      // check for 401 error to show a message
       if (result.error && result.error.includes("401")) {
         setError("Invalid email or password. Please try again.");
       } else {
@@ -62,6 +64,7 @@ function LoginPage() {
         >
           Login
         </h2>
+        {/* show success or error messages */}
         {message && (
           <div
             className="alert alert-success"
@@ -150,7 +153,7 @@ function LoginPage() {
                 id="email"
                 name="email"
                 value={formData.email}
-                onChange={handleChange}
+                onChange={handleFormChange(setFormData)}
                 className="form-control"
                 style={{
                   fontFamily: "Open Sans, sans-serif",
@@ -177,7 +180,7 @@ function LoginPage() {
                 id="password"
                 name="password"
                 value={formData.password}
-                onChange={handleChange}
+                onChange={handleFormChange(setFormData)}
                 className="form-control"
                 style={{
                   fontFamily: "Open Sans, sans-serif",

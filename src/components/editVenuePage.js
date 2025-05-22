@@ -5,6 +5,36 @@ import { fetchVenueById } from "../api/venues";
 import { updateVenue } from "../api/auth";
 import Header from "../components/header";
 
+// helper to handle form changes
+const handleFormChange = (setFormData) => (e, index) => {
+  const { name, value, type, checked } = e.target;
+  if (name.startsWith("meta.")) {
+    const metaField = name.split(".")[1];
+    setFormData((prev) => ({
+      ...prev,
+      meta: { ...prev.meta, [metaField]: checked },
+    }));
+  } else if (name.startsWith("location.")) {
+    const locationField = name.split(".")[1];
+    setFormData((prev) => ({
+      ...prev,
+      location: { ...prev.location, [locationField]: value },
+    }));
+  } else if (name.startsWith("media.")) {
+    const mediaField = name.split(".")[1];
+    setFormData((prev) => {
+      const newMedia = [...prev.media];
+      newMedia[index] = { ...newMedia[index], [mediaField]: value };
+      return { ...prev, media: newMedia };
+    });
+  } else {
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "number" ? Number(value) : value,
+    }));
+  }
+};
+
 function EditVenuePage() {
   const { user } = useContext(AuthContext);
   const { id } = useParams();
@@ -15,6 +45,7 @@ function EditVenuePage() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    // fetch venue data when page loads
     const getVenue = async () => {
       if (!user) {
         setError("You must be logged in to edit a venue.");
@@ -65,43 +96,14 @@ function EditVenuePage() {
     getVenue();
   }, [id, user]);
 
-  const handleChange = (e, index) => {
-    const { name, value, type, checked } = e.target;
-    if (name.startsWith("meta.")) {
-      const metaField = name.split(".")[1];
-      setFormData({
-        ...formData,
-        meta: { ...formData.meta, [metaField]: checked },
-      });
-    } else if (name.startsWith("location.")) {
-      const locationField = name.split(".")[1];
-      setFormData({
-        ...formData,
-        location: { ...formData.location, [locationField]: value },
-      });
-    } else if (name.startsWith("media.")) {
-      const mediaField = name.split(".")[1];
-      const newMedia = [...formData.media];
-      newMedia[index] = { ...newMedia[index], [mediaField]: value };
-      setFormData({
-        ...formData,
-        media: newMedia,
-      });
-    } else {
-      setFormData({
-        ...formData,
-        [name]: type === "number" ? Number(value) : value,
-      });
-    }
-  };
+  // add another media slot
+  const addMedia = () =>
+    setFormData((prev) => ({
+      ...prev,
+      media: [...prev.media, { url: "", alt: "" }],
+    }));
 
-  const addMedia = () => {
-    setFormData({
-      ...formData,
-      media: [...formData.media, { url: "", alt: "" }],
-    });
-  };
-
+  // handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage(null);
@@ -126,7 +128,7 @@ function EditVenuePage() {
       ...(filteredMedia.length > 0 && { media: filteredMedia }), // exclude if empty
       price: formData.price,
       maxGuests: formData.maxGuests,
-      rating: formData.rating !== undefined ? formData.rating : 0, // set a standard value
+      rating: formData.rating !== undefined ? formData.rating : 0,
       meta: formData.meta,
       location: {
         ...formData.location,
@@ -224,7 +226,7 @@ function EditVenuePage() {
               id="name"
               name="name"
               value={formData.name}
-              onChange={(e) => handleChange(e, 0)}
+              onChange={(e) => handleFormChange(setFormData)(e, 0)}
               className="form-control"
               style={{
                 fontFamily: "Open Sans, sans-serif",
@@ -247,7 +249,7 @@ function EditVenuePage() {
               id="description"
               name="description"
               value={formData.description}
-              onChange={(e) => handleChange(e, 0)}
+              onChange={(e) => handleFormChange(setFormData)(e, 0)}
               className="form-control"
               style={{
                 fontFamily: "Open Sans, sans-serif",
@@ -276,7 +278,7 @@ function EditVenuePage() {
                 id={`media.url-${index}`}
                 name="media.url"
                 value={media.url}
-                onChange={(e) => handleChange(e, index)}
+                onChange={(e) => handleFormChange(setFormData)(e, index)}
                 className="form-control mb-2"
                 style={{
                   fontFamily: "Open Sans, sans-serif",
@@ -300,7 +302,7 @@ function EditVenuePage() {
                 id={`media.alt-${index}`}
                 name="media.alt"
                 value={media.alt}
-                onChange={(e) => handleChange(e, index)}
+                onChange={(e) => handleFormChange(setFormData)(e, index)}
                 className="form-control mb-2"
                 style={{
                   fontFamily: "Open Sans, sans-serif",
@@ -337,7 +339,7 @@ function EditVenuePage() {
               id="price"
               name="price"
               value={formData.price}
-              onChange={(e) => handleChange(e, 0)}
+              onChange={(e) => handleFormChange(setFormData)(e, 0)}
               className="form-control"
               style={{
                 fontFamily: "Open Sans, sans-serif",
@@ -362,7 +364,7 @@ function EditVenuePage() {
               id="maxGuests"
               name="maxGuests"
               value={formData.maxGuests}
-              onChange={(e) => handleChange(e, 0)}
+              onChange={(e) => handleFormChange(setFormData)(e, 0)}
               className="form-control"
               style={{
                 fontFamily: "Open Sans, sans-serif",
@@ -387,7 +389,7 @@ function EditVenuePage() {
               id="rating"
               name="rating"
               value={formData.rating}
-              onChange={(e) => handleChange(e, 0)}
+              onChange={(e) => handleFormChange(setFormData)(e, 0)}
               className="form-control"
               style={{
                 fontFamily: "Open Sans, sans-serif",
@@ -412,7 +414,7 @@ function EditVenuePage() {
                 id="wifi"
                 name="meta.wifi"
                 checked={formData.meta.wifi}
-                onChange={(e) => handleChange(e, 0)}
+                onChange={(e) => handleFormChange(setFormData)(e, 0)}
                 className="form-check-input"
               />
               <label
@@ -432,7 +434,7 @@ function EditVenuePage() {
                 id="parking"
                 name="meta.parking"
                 checked={formData.meta.parking}
-                onChange={(e) => handleChange(e, 0)}
+                onChange={(e) => handleFormChange(setFormData)(e, 0)}
                 className="form-check-input"
               />
               <label
@@ -452,7 +454,7 @@ function EditVenuePage() {
                 id="breakfast"
                 name="meta.breakfast"
                 checked={formData.meta.breakfast}
-                onChange={(e) => handleChange(e, 0)}
+                onChange={(e) => handleFormChange(setFormData)(e, 0)}
                 className="form-check-input"
               />
               <label
@@ -472,7 +474,7 @@ function EditVenuePage() {
                 id="pets"
                 name="meta.pets"
                 checked={formData.meta.pets}
-                onChange={(e) => handleChange(e, 0)}
+                onChange={(e) => handleFormChange(setFormData)(e, 0)}
                 className="form-check-input"
               />
               <label
@@ -500,7 +502,7 @@ function EditVenuePage() {
               id="address"
               name="location.address"
               value={formData.location.address}
-              onChange={(e) => handleChange(e, 0)}
+              onChange={(e) => handleFormChange(setFormData)(e, 0)}
               className="form-control"
               style={{
                 fontFamily: "Open Sans, sans-serif",
@@ -523,7 +525,7 @@ function EditVenuePage() {
               id="city"
               name="location.city"
               value={formData.location.city}
-              onChange={(e) => handleChange(e, 0)}
+              onChange={(e) => handleFormChange(setFormData)(e, 0)}
               className="form-control"
               style={{
                 fontFamily: "Open Sans, sans-serif",
@@ -546,7 +548,7 @@ function EditVenuePage() {
               id="zip"
               name="location.zip"
               value={formData.location.zip}
-              onChange={(e) => handleChange(e, 0)}
+              onChange={(e) => handleFormChange(setFormData)(e, 0)}
               className="form-control"
               style={{
                 fontFamily: "Open Sans, sans-serif",
@@ -569,7 +571,7 @@ function EditVenuePage() {
               id="country"
               name="location.country"
               value={formData.location.country}
-              onChange={(e) => handleChange(e, 0)}
+              onChange={(e) => handleFormChange(setFormData)(e, 0)}
               className="form-control"
               style={{
                 fontFamily: "Open Sans, sans-serif",
@@ -592,7 +594,7 @@ function EditVenuePage() {
               id="continent"
               name="location.continent"
               value={formData.location.continent}
-              onChange={(e) => handleChange(e, 0)}
+              onChange={(e) => handleFormChange(setFormData)(e, 0)}
               className="form-control"
               style={{
                 fontFamily: "Open Sans, sans-serif",

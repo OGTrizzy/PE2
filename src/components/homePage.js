@@ -3,6 +3,33 @@ import { Link } from "react-router-dom";
 import { searchVenues } from "../api/venues";
 import Header from "../components/header.js";
 
+// helper function to sort venues—keeps things neat
+const sortVenues = (venues, criteria, order) => {
+  const sortedVenues = [...venues];
+  switch (criteria) {
+    case "price":
+      sortedVenues.sort((a, b) =>
+        order === "asc" ? a.price - b.price : b.price - a.price
+      );
+      break;
+    case "maxGuests":
+      sortedVenues.sort((a, b) =>
+        order === "asc" ? a.maxGuests - b.maxGuests : b.maxGuests - a.maxGuests
+      );
+      break;
+    case "rating":
+      sortedVenues.sort((a, b) =>
+        order === "asc" ? a.rating - b.rating : b.rating - a.rating
+      );
+      break;
+    case "created":
+    default:
+      sortedVenues.sort((a, b) => new Date(b.created) - new Date(a.created));
+      break;
+  }
+  return sortedVenues;
+};
+
 function HomePage() {
   const [filteredVenues, setFilteredVenues] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -10,40 +37,12 @@ function HomePage() {
   const [sortCriteria, setSortCriteria] = useState("created");
   const [sortOrder, setSortOrder] = useState("desc");
 
-  // function to sort venues by date created and criteria
-  const sortVenues = (venues) => {
-    const sortedVenues = [...venues];
-    switch (sortCriteria) {
-      case "price":
-        sortedVenues.sort((a, b) =>
-          sortOrder === "asc" ? a.price - b.price : b.price - a.price
-        );
-        break;
-      case "maxGuests":
-        sortedVenues.sort((a, b) =>
-          sortOrder === "asc"
-            ? a.maxGuests - b.maxGuests
-            : b.maxGuests - a.maxGuests
-        );
-        break;
-      case "rating":
-        sortedVenues.sort((a, b) =>
-          sortOrder === "asc" ? a.rating - b.rating : b.rating - a.rating
-        );
-        break;
-      case "created":
-      default:
-        sortedVenues.sort((a, b) => new Date(b.created) - new Date(a.created));
-        break;
-    }
-    return sortedVenues;
-  };
-
+  // load all venues when the page mounts
   useEffect(() => {
     const getVenues = async () => {
       setLoading(true);
       const data = await searchVenues("");
-      const sortedData = sortVenues(data);
+      const sortedData = sortVenues(data, sortCriteria, sortOrder);
       setFilteredVenues(sortedData);
       setLoading(false);
     };
@@ -51,20 +50,22 @@ function HomePage() {
     // eslint-disable-next-line
   }, []);
 
+  // handle search submission
   const handleSearch = async (e) => {
     e.preventDefault();
     setLoading(true);
     const results = await searchVenues(searchQuery);
-    const sortedResults = sortVenues(results);
+    const sortedResults = sortVenues(results, sortCriteria, sortOrder);
     setFilteredVenues(sortedResults);
     setLoading(false);
   };
 
+  // handle sort dropdown change
   const handleSortChange = (e) => {
     const [criteria, order] = e.target.value.split("-");
     setSortCriteria(criteria);
     setSortOrder(order);
-    const sortedVenues = sortVenues(filteredVenues);
+    const sortedVenues = sortVenues(filteredVenues, criteria, order);
     setFilteredVenues(sortedVenues);
   };
 
@@ -101,7 +102,7 @@ function HomePage() {
             </button>
           </form>
 
-          {/* dropdown sorter */}
+          {/* sort dropdown, nice and centered */}
           <div className="mb-4" style={{ maxWidth: "300px", margin: "0 auto" }}>
             <select
               value={`${sortCriteria}-${sortOrder}`}

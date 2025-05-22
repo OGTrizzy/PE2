@@ -3,6 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { registerUser } from "../api/auth";
 import Header from "../components/header";
 
+// helper to update form fields
+const handleFormChange = (setFormData) => (e) => {
+  const { name, value, type, checked } = e.target;
+  setFormData((prev) => ({
+    ...prev,
+    [name]: type === "checkbox" ? checked : value,
+  }));
+};
+
 function RegisterPage() {
   const [formData, setFormData] = useState({
     name: "",
@@ -14,14 +23,7 @@ function RegisterPage() {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData({
-      ...formData,
-      [name]: type === "checkbox" ? checked : value,
-    });
-  };
-
+  // handle form submission for registration
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage(null);
@@ -60,6 +62,7 @@ function RegisterPage() {
         >
           Register
         </h2>
+        {/* show success or error messages */}
         {message && (
           <div
             className="alert alert-success"
@@ -92,7 +95,7 @@ function RegisterPage() {
               id="name"
               name="name"
               value={formData.name}
-              onChange={handleChange}
+              onChange={handleFormChange(setFormData)}
               className="form-control"
               style={{
                 fontFamily: "Open Sans, sans-serif",
@@ -116,7 +119,7 @@ function RegisterPage() {
               id="email"
               name="email"
               value={formData.email}
-              onChange={handleChange}
+              onChange={handleFormChange(setFormData)}
               className="form-control"
               style={{
                 fontFamily: "Open Sans, sans-serif",
@@ -140,7 +143,7 @@ function RegisterPage() {
               id="password"
               name="password"
               value={formData.password}
-              onChange={handleChange}
+              onChange={handleFormChange(setFormData)}
               className="form-control"
               style={{
                 fontFamily: "Open Sans, sans-serif",
@@ -157,7 +160,7 @@ function RegisterPage() {
               id="venueManager"
               name="venueManager"
               checked={formData.venueManager}
-              onChange={handleChange}
+              onChange={handleFormChange(setFormData)}
               className="form-check-input"
             />
             <label

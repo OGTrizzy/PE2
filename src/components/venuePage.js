@@ -8,6 +8,21 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 
+// helper to generate events from bookings and temp selection
+const generateEvents = (bookings, tempEvent) => [
+  ...bookings.map((booking) => ({
+    start: booking.dateFrom,
+    end: new Date(
+      new Date(booking.dateTo).setDate(new Date(booking.dateTo).getDate() + 1)
+    ),
+    title: "Booked",
+    allDay: true,
+    backgroundColor: "#FF6F61",
+    borderColor: "#FF6F61",
+  })),
+  ...(tempEvent ? [tempEvent] : []),
+];
+
 function VenuePage() {
   const { id } = useParams();
   const [venue, setVenue] = useState(null);
@@ -17,8 +32,8 @@ function VenuePage() {
     dateFrom: null,
     dateTo: null,
   });
-  const [startDate, setStartDate] = useState(null); // tempoary save startdate
-  const [tempEvent, setTempEvent] = useState(null); // tempoary event for chosen dates
+  const [startDate, setStartDate] = useState(null);
+  const [tempEvent, setTempEvent] = useState(null);
   const [guests, setGuests] = useState(1);
   const [bookingMessage, setBookingMessage] = useState(null);
   const [bookingError, setBookingError] = useState(null);
@@ -26,15 +41,16 @@ function VenuePage() {
   const [deleteError, setDeleteError] = useState(null);
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
-  const calendarRef = useRef(null); // ref for fullcalender
+  const calendarRef = useRef(null);
 
   useEffect(() => {
+    // fetch venue and bookings when page loads
     const getVenueAndBookings = async () => {
       setLoading(true);
       try {
         const venueData = await fetchVenueById(id);
         setVenue(venueData);
-        setBookings(venueData.bookings || []); // get bookings from response Hent
+        setBookings(venueData.bookings || []);
       } catch (error) {
         console.error("Error fetching venue or bookings:", error);
       } finally {
@@ -44,30 +60,28 @@ function VenuePage() {
     getVenueAndBookings();
   }, [id]);
 
+  // handle date selection on calendar
   const handleDateClick = (arg) => {
     if (!startDate) {
-      // first click sets start date
       setStartDate(arg.date);
       setBookingError(null);
 
-      // add tempoary event before startdate
       const newTempEvent = {
         id: "temp-selection",
         start: arg.date,
         end: arg.date,
         title: "",
         allDay: true,
-        backgroundColor: "#4A90E2", // blue for startdate
+        backgroundColor: "#4A90E2",
         borderColor: "#4A90E2",
       };
       setTempEvent(newTempEvent);
     } else {
-      // second click completes the choise if first date is chosen
       const endDate = arg.date;
       if (endDate < startDate) {
         setBookingError("End date cannot be before start date.");
         setStartDate(null);
-        setTempEvent(null); // remove tempoary event
+        setTempEvent(null);
         return;
       }
 
@@ -95,7 +109,7 @@ function VenuePage() {
       if (hasBookedDate) {
         setBookingError("Some dates in the selected range are already booked.");
         setStartDate(null);
-        setTempEvent(null); // remove tempoary date
+        setTempEvent(null);
         return;
       }
 
@@ -105,14 +119,13 @@ function VenuePage() {
       });
       setStartDate(null);
 
-      // update tempoary event to cover whole chosen period
       const updatedTempEvent = {
         id: "temp-selection",
         start: startDate,
         end: new Date(endDate.setDate(endDate.getDate() + 1)),
         title: "",
         allDay: true,
-        backgroundColor: "#4A90E2", // blue for chosen period
+        backgroundColor: "#4A90E2",
         borderColor: "#4A90E2",
       };
       setTempEvent(updatedTempEvent);
@@ -120,6 +133,7 @@ function VenuePage() {
     }
   };
 
+  // handle booking submission
   const handleBooking = async () => {
     if (!selectedDates.dateFrom || !selectedDates.dateTo) {
       setBookingError("Please select both a start and end date.");
@@ -143,8 +157,8 @@ function VenuePage() {
       setBookingMessage("Booking successful!");
       setSelectedDates({ dateFrom: null, dateTo: null });
       setGuests(1);
-      setTempEvent(null); // remove chosen period after booking
-      const updatedVenue = await fetchVenueById(id); // fetch updated venue with new bookings
+      setTempEvent(null);
+      const updatedVenue = await fetchVenueById(id);
       setVenue(updatedVenue);
       setBookings(updatedVenue.bookings || []);
     } else {
@@ -152,6 +166,7 @@ function VenuePage() {
     }
   };
 
+  // handle venue deletion
   const handleDelete = async () => {
     if (
       !user ||
@@ -176,19 +191,7 @@ function VenuePage() {
     }
   };
 
-  const events = [
-    ...bookings.map((booking) => ({
-      start: booking.dateFrom,
-      end: new Date(
-        new Date(booking.dateTo).setDate(new Date(booking.dateTo).getDate() + 1)
-      ),
-      title: "Booked",
-      allDay: true,
-      backgroundColor: "#FF6F61",
-      borderColor: "#FF6F61",
-    })),
-    ...(tempEvent ? [tempEvent] : []), // adds tempary event for chosen period
-  ];
+  const events = generateEvents(bookings, tempEvent);
 
   if (loading) {
     return (
@@ -341,9 +344,7 @@ function VenuePage() {
                 dateClick={handleDateClick}
                 selectable={false}
                 events={events}
-                selectConstraint={{
-                  start: new Date(),
-                }}
+                selectConstraint={{ start: new Date() }}
                 eventOverlap={false}
                 height="auto"
               />

@@ -10,6 +10,14 @@ import {
 } from "../api/auth";
 import Header from "../components/header.js";
 
+// helper function to calculate total price for a booking
+const calculateTotalPrice = (booking, venuePrice) => {
+  const dateFrom = new Date(booking.dateFrom);
+  const dateTo = new Date(booking.dateTo);
+  const nights = Math.ceil((dateTo - dateFrom) / (1000 * 60 * 60 * 24));
+  return nights * venuePrice;
+};
+
 function ProfilePage() {
   const { user: contextUser } = useContext(AuthContext);
   const [profileData, setProfileData] = useState(null);
@@ -24,6 +32,7 @@ function ProfilePage() {
   });
   const [upcomingBookings, setUpcomingBookings] = useState([]);
 
+  // load user from localstorage on mount
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
@@ -42,11 +51,10 @@ function ProfilePage() {
     }
   }, []);
 
+  // load profile data and bookings
   useEffect(() => {
     const loadProfileAndBookings = async () => {
-      if (!localUser) {
-        return;
-      }
+      if (!localUser) return;
 
       setLoading(true);
       try {
@@ -59,9 +67,8 @@ function ProfilePage() {
           return;
         }
 
-        // get userdata
+        // fetch user profile data
         const data = await fetchProfile(name, token);
-        console.log("Profile data:", data);
         setProfileData(
           data || { bookings: [], venues: [], avatar: {}, bio: "" }
         );
@@ -73,24 +80,17 @@ function ProfilePage() {
           data.venueManager || localUser?.venueManager || false
         );
 
-        // get booking for every venues (only for managers)
+        // fetch bookings for venue managers only
         if (isVenueManager) {
           const venueBookings = await Promise.all(
             (data.venues || []).map(async (venue) => {
               try {
-                // get venue with bookings to get booking id
                 const venueData = await fetchVenueById(venue.id);
-                console.log(`Venue ${venue.name} data:`, venueData);
 
-                // get details of every booking
                 const bookings = await Promise.all(
                   (venueData.bookings || []).map(async (booking) => {
                     try {
                       const bookingDetails = await fetchBookingById(booking.id);
-                      console.log(
-                        `Booking data for ID ${booking.id}:`,
-                        bookingDetails
-                      );
                       if (bookingDetails.success) {
                         return {
                           ...bookingDetails.data,
@@ -121,14 +121,12 @@ function ProfilePage() {
           );
 
           const allBookings = venueBookings.flat();
-          console.log("All bookings before filtering:", allBookings);
           const today = new Date();
           today.setHours(0, 0, 0, 0);
           const filteredBookings = allBookings.filter(
             (booking) =>
               new Date(booking.dateFrom).setHours(0, 0, 0, 0) >= today
           );
-          console.log("Filtered upcoming bookings:", filteredBookings);
           setUpcomingBookings(filteredBookings);
         }
       } catch (err) {
@@ -144,6 +142,7 @@ function ProfilePage() {
     }
   }, [localUser, isVenueManager]);
 
+  // handle form input changes for editing profile
   const handleEditChange = (e) => {
     const { name, value } = e.target;
     if (name === "avatar") {
@@ -159,6 +158,7 @@ function ProfilePage() {
     }
   };
 
+  // handle profile update submission
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -186,6 +186,7 @@ function ProfilePage() {
     }
   };
 
+  // handle venue deletion
   const handleDeleteVenue = async (venueId) => {
     if (!window.confirm("Are you sure you want to delete this venue?")) {
       return;
@@ -198,7 +199,7 @@ function ProfilePage() {
         return;
       }
 
-      const result = await deleteVenue(venueId, token);
+      const result = await deleteVenue(venueId);
       if (result.success) {
         setProfileData((prevData) => ({
           ...prevData,
@@ -214,13 +215,7 @@ function ProfilePage() {
     }
   };
 
-  const calculateTotalPrice = (booking, venuePrice) => {
-    const dateFrom = new Date(booking.dateFrom);
-    const dateTo = new Date(booking.dateTo);
-    const nights = Math.ceil((dateTo - dateFrom) / (1000 * 60 * 60 * 24));
-    return nights * venuePrice;
-  };
-
+  // loading state
   if (loading) {
     return (
       <div style={{ minHeight: "100vh", backgroundColor: "#F5F5F5" }}>
@@ -235,6 +230,7 @@ function ProfilePage() {
     );
   }
 
+  // error state
   if (error || !profileData) {
     return (
       <div style={{ minHeight: "100vh", backgroundColor: "#F5F5F5" }}>
@@ -422,8 +418,11 @@ function ProfilePage() {
         </div>
 
         <div className="d-flex gap-4 flex-wrap">
-          {/* booking section */}
-          <div className="flex-grow-1" style={{ minWidth: "300px" }}>
+          {/* my bookings section */}
+          <div
+            className="flex-grow-1"
+            style={{ minWidth: "300px", maxWidth: "33%" }}
+          >
             <h3
               style={{
                 fontFamily: "Poppins, sans-serif",
@@ -511,9 +510,12 @@ function ProfilePage() {
             )}
           </div>
 
-          {/* venues section (for managers) */}
+          {/* my venues section for managers */}
           {isVenueManager && (
-            <div className="flex-grow-1" style={{ minWidth: "300px" }}>
+            <div
+              className="flex-grow-1"
+              style={{ minWidth: "300px", maxWidth: "33%" }}
+            >
               <h3
                 style={{
                   fontFamily: "Poppins, sans-serif",
@@ -633,9 +635,12 @@ function ProfilePage() {
             </div>
           )}
 
-          {/* upcoming bookings for my menues for managers only */}
+          {/* upcoming bookings for managers */}
           {isVenueManager && (
-            <div className="flex-grow-1" style={{ minWidth: "300px" }}>
+            <div
+              className="flex-grow-1"
+              style={{ minWidth: "300px", maxWidth: "33%" }}
+            >
               <h3
                 style={{
                   fontFamily: "Poppins, sans-serif",
