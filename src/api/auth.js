@@ -102,8 +102,8 @@ export const loginUser = async (credentials) => {
       loginResponse,
       "Failed to login"
     );
-    const token = loginResult.data.accessToken;
-    const userName = loginResult.data.name;
+    const token = loginResult.accessToken;
+    const userName = loginResult.name;
 
     if (!token || !userName) {
       throw new Error("Invalid login response: Missing token or username");
