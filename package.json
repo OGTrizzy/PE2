@@ -2,7 +2,7 @@
   "name": "pe2",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://OGTrizzy.github.io/PE2",
+  "homepage": "https://ogtrizzy.github.io/PE2/",
   "dependencies": {
     "@fullcalendar/daygrid": "^6.1.17",
     "@fullcalendar/interaction": "^6.1.17",
