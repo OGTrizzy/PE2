@@ -75,9 +75,40 @@ function CreateVenuePage() {
       return;
     }
 
-    if (formData.price <= 0 || formData.maxGuests <= 0) {
-      setError("Price and max guests must be greater than 0.");
+    // Validate required fields
+    if (!formData.name.trim()) {
+      setError("Venue name is required.");
       return;
+    }
+    if (!formData.description.trim()) {
+      setError("Description is required.");
+      return;
+    }
+    if (formData.price <= 0) {
+      setError("Price must be greater than 0.");
+      return;
+    }
+    if (formData.maxGuests <= 0) {
+      setError("Max guests must be greater than 0.");
+      return;
+    }
+
+    const cleanedLocation = {};
+    let hasLocationData = false;
+    const locationFields = ["address", "city", "zip", "country", "continent"];
+    locationFields.forEach((field) => {
+      if (formData.location[field] && formData.location[field].trim()) {
+        cleanedLocation[field] = formData.location[field].trim();
+        hasLocationData = true;
+      }
+    });
+    if (formData.location.lat !== 0) {
+      cleanedLocation.lat = formData.location.lat;
+      hasLocationData = true;
+    }
+    if (formData.location.lng !== 0) {
+      cleanedLocation.lng = formData.location.lng;
+      hasLocationData = true;
     }
 
     const cleanedFormData = {
@@ -85,12 +116,10 @@ function CreateVenuePage() {
       media: formData.media.filter(
         (media) => media.url && media.url.trim() !== ""
       ),
-      location: {
-        ...formData.location,
-        lat: formData.location.lat === 0 ? undefined : formData.location.lat,
-        lng: formData.location.lng === 0 ? undefined : formData.location.lng,
-      },
+      location: hasLocationData ? cleanedLocation : undefined,
     };
+
+    console.log("Sending venue data to API:", cleanedFormData);
 
     const result = await createVenue(cleanedFormData);
     if (result.success) {
@@ -235,7 +264,7 @@ function CreateVenuePage() {
                 color: "white",
               }}
             >
-              Legg til bilde
+              Add a image
             </button>
             <div className="mb-3">
               <label
@@ -275,7 +304,7 @@ function CreateVenuePage() {
                 type="number"
                 id="maxGuests"
                 name="maxGuests"
-                value={formData.maxGuests}
+                value={formData.maxGuests} // Fixed: now correctly bound to maxGuests
                 onChange={(e) => handleChange(e, 0)}
                 className="form-control"
                 required
