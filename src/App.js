@@ -11,7 +11,7 @@ import Profile from "./components/profile.js";
 function App() {
   return (
     <AuthProvider>
-      <Router>
+      <Router basename={process.env.PUBLIC_URL}>
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/venue/:id" element={<VenuePage />} />
@@ -20,6 +20,7 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/create-venue" element={<CreateVenuePage />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="*" element={<HomePage />} />
         </Routes>
       </Router>
     </AuthProvider>

@@ -4,43 +4,13 @@ import { createVenue } from "../api/auth";
 import { AuthContext } from "../context/authContext";
 import Header from "../components/header";
 
-// helper to handle form changes
-const handleFormChange = (setFormData) => (e, index) => {
-  const { name, value, type, checked } = e.target;
-  if (name.startsWith("meta.")) {
-    const metaField = name.split(".")[1];
-    setFormData((prev) => ({
-      ...prev,
-      meta: { ...prev.meta, [metaField]: checked },
-    }));
-  } else if (name.startsWith("location.")) {
-    const locationField = name.split(".")[1];
-    setFormData((prev) => ({
-      ...prev,
-      location: { ...prev.location, [locationField]: value },
-    }));
-  } else if (name.startsWith("media.")) {
-    const mediaField = name.split(".")[1];
-    setFormData((prev) => {
-      const newMedia = [...prev.media];
-      newMedia[index] = { ...newMedia[index], [mediaField]: value };
-      return { ...prev, media: newMedia };
-    });
-  } else {
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "number" ? Number(value) : value,
-    }));
-  }
-};
-
 function CreateVenuePage() {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    media: [{ url: "", alt: "" }], // starts with one image slot
+    media: [{ url: "", alt: "" }],
     price: 0,
     maxGuests: 1,
     rating: 0,
@@ -58,14 +28,43 @@ function CreateVenuePage() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
-  // add another media slot
-  const addMedia = () =>
-    setFormData((prev) => ({
-      ...prev,
-      media: [...prev.media, { url: "", alt: "" }],
-    }));
+  const handleChange = (e, index) => {
+    const { name, value, type, checked } = e.target;
+    if (name.startsWith("meta.")) {
+      const metaField = name.split(".")[1];
+      setFormData({
+        ...formData,
+        meta: { ...formData.meta, [metaField]: checked },
+      });
+    } else if (name.startsWith("location.")) {
+      const locationField = name.split(".")[1];
+      setFormData({
+        ...formData,
+        location: { ...formData.location, [locationField]: value },
+      });
+    } else if (name.startsWith("media.")) {
+      const mediaField = name.split(".")[1];
+      const newMedia = [...formData.media];
+      newMedia[index] = { ...newMedia[index], [mediaField]: value };
+      setFormData({
+        ...formData,
+        media: newMedia,
+      });
+    } else {
+      setFormData({
+        ...formData,
+        [name]: type === "number" ? Number(value) : value,
+      });
+    }
+  };
 
-  // handle form submission
+  const addMedia = () => {
+    setFormData({
+      ...formData,
+      media: [...formData.media, { url: "", alt: "" }],
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -93,12 +92,15 @@ function CreateVenuePage() {
       },
     };
 
-    console.log("Sending venue data:", cleanedFormData);
-
     const result = await createVenue(cleanedFormData);
     if (result.success) {
+      const venueId = result.data?.id;
+      if (!venueId) {
+        setError("Failed to retrieve venue ID after creation.");
+        return;
+      }
       setSuccess("Venue created successfully!");
-      setTimeout(() => navigate(`/venue/${result.data.id}`), 2000);
+      setTimeout(() => navigate(`/venue/${venueId}`), 2000);
     } else {
       setError(result.error || "Failed to create venue. Please try again.");
       console.error("API error details:", result.error);
@@ -153,7 +155,7 @@ function CreateVenuePage() {
                 id="name"
                 name="name"
                 value={formData.name}
-                onChange={(e) => handleFormChange(setFormData)(e, 0)}
+                onChange={(e) => handleChange(e, 0)}
                 className="form-control"
                 required
                 style={{ fontFamily: "Open Sans, sans-serif" }}
@@ -174,7 +176,7 @@ function CreateVenuePage() {
                 id="description"
                 name="description"
                 value={formData.description}
-                onChange={(e) => handleFormChange(setFormData)(e, 0)}
+                onChange={(e) => handleChange(e, 0)}
                 className="form-control"
                 required
                 style={{ fontFamily: "Open Sans, sans-serif" }}
@@ -197,7 +199,7 @@ function CreateVenuePage() {
                   id={`media.url-${index}`}
                   name="media.url"
                   value={media.url}
-                  onChange={(e) => handleFormChange(setFormData)(e, index)}
+                  onChange={(e) => handleChange(e, index)}
                   className="form-control mb-2"
                   style={{ fontFamily: "Open Sans, sans-serif" }}
                 />
@@ -216,7 +218,7 @@ function CreateVenuePage() {
                   id={`media.alt-${index}`}
                   name="media.alt"
                   value={media.alt}
-                  onChange={(e) => handleFormChange(setFormData)(e, index)}
+                  onChange={(e) => handleChange(e, index)}
                   className="form-control mb-2"
                   style={{ fontFamily: "Open Sans, sans-serif" }}
                 />
@@ -251,7 +253,7 @@ function CreateVenuePage() {
                 id="price"
                 name="price"
                 value={formData.price}
-                onChange={(e) => handleFormChange(setFormData)(e, 0)}
+                onChange={(e) => handleChange(e, 0)}
                 className="form-control"
                 required
                 min="1"
@@ -274,7 +276,7 @@ function CreateVenuePage() {
                 id="maxGuests"
                 name="maxGuests"
                 value={formData.maxGuests}
-                onChange={(e) => handleFormChange(setFormData)(e, 0)}
+                onChange={(e) => handleChange(e, 0)}
                 className="form-control"
                 required
                 min="1"
@@ -297,7 +299,7 @@ function CreateVenuePage() {
                   id="wifi"
                   name="meta.wifi"
                   checked={formData.meta.wifi}
-                  onChange={(e) => handleFormChange(setFormData)(e, 0)}
+                  onChange={(e) => handleChange(e, 0)}
                   className="form-check-input"
                 />
                 <label
@@ -317,7 +319,7 @@ function CreateVenuePage() {
                   id="parking"
                   name="meta.parking"
                   checked={formData.meta.parking}
-                  onChange={(e) => handleFormChange(setFormData)(e, 0)}
+                  onChange={(e) => handleChange(e, 0)}
                   className="form-check-input"
                 />
                 <label
@@ -337,7 +339,7 @@ function CreateVenuePage() {
                   id="breakfast"
                   name="meta.breakfast"
                   checked={formData.meta.breakfast}
-                  onChange={(e) => handleFormChange(setFormData)(e, 0)}
+                  onChange={(e) => handleChange(e, 0)}
                   className="form-check-input"
                 />
                 <label
@@ -357,7 +359,7 @@ function CreateVenuePage() {
                   id="pets"
                   name="meta.pets"
                   checked={formData.meta.pets}
-                  onChange={(e) => handleFormChange(setFormData)(e, 0)}
+                  onChange={(e) => handleChange(e, 0)}
                   className="form-check-input"
                 />
                 <label
@@ -388,7 +390,7 @@ function CreateVenuePage() {
                 id="location.address"
                 name="location.address"
                 value={formData.location.address}
-                onChange={(e) => handleFormChange(setFormData)(e, 0)}
+                onChange={(e) => handleChange(e, 0)}
                 className="form-control"
                 style={{ fontFamily: "Open Sans, sans-serif" }}
               />
@@ -409,7 +411,7 @@ function CreateVenuePage() {
                 id="location.city"
                 name="location.city"
                 value={formData.location.city}
-                onChange={(e) => handleFormChange(setFormData)(e, 0)}
+                onChange={(e) => handleChange(e, 0)}
                 className="form-control"
                 style={{ fontFamily: "Open Sans, sans-serif" }}
               />
@@ -430,7 +432,7 @@ function CreateVenuePage() {
                 id="location.country"
                 name="location.country"
                 value={formData.location.country}
-                onChange={(e) => handleFormChange(setFormData)(e, 0)}
+                onChange={(e) => handleChange(e, 0)}
                 className="form-control"
                 style={{ fontFamily: "Open Sans, sans-serif" }}
               />

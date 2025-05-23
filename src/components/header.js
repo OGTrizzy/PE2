@@ -18,7 +18,7 @@ function Header() {
           {/* wrapping the img in a Link to make it clickable */}
           <Link to="/">
             <img
-              src="logo.png"
+              src={`${process.env.PUBLIC_URL}/logo.png`}
               alt="Logo"
               className="responsive-logo"
               style={{

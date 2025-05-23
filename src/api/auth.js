@@ -14,21 +14,6 @@ const getAuthHeaders = (token = null, includeApiKey = true) => {
   return headers;
 };
 
-// helper function to handle responses and errors
-const handleApiResponse = async (
-  response,
-  errorMessagePrefix = "HTTP error"
-) => {
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(
-      `${errorMessagePrefix}: ${errorData.message || response.statusText}`
-    );
-  }
-  const result = await response.json();
-  return result.data || result;
-};
-
 // fetch a user profile
 export const fetchProfile = async (name, token) => {
   if (!name || !token) {
@@ -43,7 +28,16 @@ export const fetchProfile = async (name, token) => {
         headers: getAuthHeaders(token),
       }
     );
-    return await handleApiResponse(response, "Failed to fetch profile");
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(
+        `Failed to fetch profile: ${errorData.message || response.statusText}`
+      );
+    }
+
+    const result = await response.json();
+    return result.data;
   } catch (error) {
     console.error("Error fetching profile:", error);
     throw error;
@@ -58,7 +52,16 @@ export const updateProfile = async (name, token, updates) => {
       headers: getAuthHeaders(token),
       body: JSON.stringify(updates),
     });
-    return await handleApiResponse(response, "Failed to update profile");
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(
+        `Failed to update profile: ${errorData.message || response.statusText}`
+      );
+    }
+
+    const result = await response.json();
+    return result.data || result;
   } catch (error) {
     console.error("Error updating profile:", error);
     throw error;
@@ -78,8 +81,16 @@ export const registerUser = async (userData) => {
         venueManager: userData.venueManager || false,
       }),
     });
-    const data = await handleApiResponse(response, "Failed to register user");
-    return { success: true, data };
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(
+        errorData.message || `HTTP error! Status: ${response.status}`
+      );
+    }
+
+    const data = await response.json();
+    return { success: true, data: data.data };
   } catch (error) {
     console.error("Error registering user:", error);
     return { success: false, error: error.message };
@@ -91,17 +102,24 @@ export const loginUser = async (credentials) => {
   try {
     const loginResponse = await fetch(API_CONFIG.ENDPOINTS.AUTH_LOGIN, {
       method: "POST",
-      headers: getAuthHeaders(),
+      headers: {
+        "Content-Type": "application/json",
+        "X-Noroff-API-Key": API_CONFIG.KEY,
+      },
       body: JSON.stringify({
         email: credentials.email,
         password: credentials.password,
       }),
     });
 
-    const loginResult = await handleApiResponse(
-      loginResponse,
-      "Failed to login"
-    );
+    if (!loginResponse.ok) {
+      const errorData = await loginResponse.json();
+      throw new Error(
+        errorData.message || `HTTP error! Status: ${loginResponse.status}`
+      );
+    }
+
+    const loginResult = await loginResponse.json();
     const token = loginResult.data.accessToken;
     const userName = loginResult.data.name;
 
@@ -141,7 +159,16 @@ export const fetchProfiles = async () => {
       method: "GET",
       headers: getAuthHeaders(null, false),
     });
-    return await handleApiResponse(response, "Failed to fetch profiles");
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(
+        errorData.message || `HTTP error! Status: ${response.status}`
+      );
+    }
+
+    const result = await response.json();
+    return result.data;
   } catch (error) {
     console.error("Error fetching profiles:", error);
     return [];
@@ -158,7 +185,16 @@ export const searchProfiles = async (query) => {
         headers: getAuthHeaders(null, false),
       }
     );
-    return await handleApiResponse(response, "Failed to search profiles");
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(
+        errorData.message || `HTTP error! Status: ${response.status}`
+      );
+    }
+
+    const result = await response.json();
+    return result.data;
   } catch (error) {
     console.error("Error searching profiles:", error);
     return [];
@@ -175,13 +211,8 @@ export const fetchProfileVenues = async (name) => {
     };
   }
 
-  try {
-    const profile = await fetchProfile(name, token);
-    return { success: true, data: profile.venues || [] };
-  } catch (error) {
-    console.error("Error fetching profile venues:", error);
-    return { success: false, error: error.message };
-  }
+  const profile = await fetchProfile(name, token);
+  return { success: true, data: profile.venues || [] };
 };
 
 // fetch bookings for a profile
@@ -194,13 +225,8 @@ export const fetchProfileBookings = async (name) => {
     };
   }
 
-  try {
-    const profile = await fetchProfile(name, token);
-    return { success: true, data: profile.bookings || [] };
-  } catch (error) {
-    console.error("Error fetching profile bookings:", error);
-    return { success: false, error: error.message };
-  }
+  const profile = await fetchProfile(name, token);
+  return { success: true, data: profile.bookings || [] };
 };
 
 // fetch a specific venue by id
@@ -214,7 +240,16 @@ export const fetchVenueById = async (venueId) => {
         headers: getAuthHeaders(token),
       }
     );
-    return await handleApiResponse(response, "Failed to fetch venue");
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(
+        errorData.message || `HTTP error! Status: ${response.status}`
+      );
+    }
+
+    const result = await response.json();
+    return result.data;
   } catch (error) {
     console.error("Error fetching venue:", error);
     throw error;
@@ -224,6 +259,7 @@ export const fetchVenueById = async (venueId) => {
 // create a booking
 export const createBooking = async (bookingData) => {
   const token = localStorage.getItem("token");
+
   if (!token) {
     return { success: false, error: "You must be logged in to book a venue." };
   }
@@ -234,8 +270,16 @@ export const createBooking = async (bookingData) => {
       headers: getAuthHeaders(token),
       body: JSON.stringify(bookingData),
     });
-    const data = await handleApiResponse(response, "Failed to create booking");
-    return { success: true, data };
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(
+        errorData.message || `HTTP error! Status: ${response.status}`
+      );
+    }
+
+    const data = await response.json();
+    return { success: true, data: data.data };
   } catch (error) {
     console.error("Error creating booking:", error);
     return { success: false, error: error.message };
@@ -260,8 +304,16 @@ export const fetchBookingById = async (bookingId) => {
         headers: getAuthHeaders(token),
       }
     );
-    const data = await handleApiResponse(response, "Failed to fetch booking");
-    return { success: true, data };
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(
+        errorData.message || `HTTP error! Status: ${response.status}`
+      );
+    }
+
+    const result = await response.json();
+    return { success: true, data: result.data };
   } catch (error) {
     console.error("Error fetching booking:", error);
     return { success: false, error: error.message };
@@ -287,8 +339,16 @@ export const updateBooking = async (bookingId, bookingData) => {
         body: JSON.stringify(bookingData),
       }
     );
-    const data = await handleApiResponse(response, "Failed to update booking");
-    return { success: true, data };
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(
+        errorData.message || `HTTP error! Status: ${response.status}`
+      );
+    }
+
+    const data = await response.json();
+    return { success: true, data: data.data };
   } catch (error) {
     console.error("Error updating booking:", error);
     return { success: false, error: error.message };
@@ -313,7 +373,14 @@ export const deleteBooking = async (bookingId) => {
         headers: getAuthHeaders(token),
       }
     );
-    await handleApiResponse(response, "Failed to delete booking");
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(
+        errorData.message || `HTTP error! Status: ${response.status}`
+      );
+    }
+
     return { success: true };
   } catch (error) {
     console.error("Error deleting booking:", error);
@@ -346,8 +413,16 @@ export const createVenue = async (venueData) => {
       headers: getAuthHeaders(token),
       body: JSON.stringify(venueData),
     });
-    const data = await handleApiResponse(response, "Failed to create venue");
-    return { success: true, data };
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(
+        errorData.message || `HTTP error! Status: ${response.status}`
+      );
+    }
+
+    const data = await response.json();
+    return { success: true, data: data.data };
   } catch (error) {
     console.error("Error creating venue:", error);
     return { success: false, error: error.message };
@@ -379,8 +454,16 @@ export const updateVenue = async (venueId, venueData) => {
       headers: getAuthHeaders(token),
       body: JSON.stringify(venueData),
     });
-    const data = await handleApiResponse(response, "Failed to update venue");
-    return { success: true, data };
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(
+        errorData.message || `HTTP error! Status: ${response.status}`
+      );
+    }
+
+    const data = await response.json();
+    return { success: true, data: data.data };
   } catch (error) {
     console.error("Error updating venue:", error);
     return { success: false, error: error.message };
@@ -388,8 +471,7 @@ export const updateVenue = async (venueId, venueData) => {
 };
 
 // delete a venue
-export const deleteVenue = async (venueId) => {
-  const token = localStorage.getItem("token");
+export const deleteVenue = async (venueId, token) => {
   const user = JSON.parse(localStorage.getItem("user"));
 
   if (!token) {
@@ -411,7 +493,14 @@ export const deleteVenue = async (venueId) => {
       method: "DELETE",
       headers: getAuthHeaders(token),
     });
-    await handleApiResponse(response, "Failed to delete venue");
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(
+        errorData.message || `HTTP error! Status: ${response.status}`
+      );
+    }
+
     return { success: true };
   } catch (error) {
     console.error("Error deleting venue:", error);
@@ -426,7 +515,16 @@ export const fetchVenues = async () => {
       method: "GET",
       headers: getAuthHeaders(null, true),
     });
-    return await handleApiResponse(response, "Failed to fetch venues");
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(
+        errorData.message || `HTTP error! Status: ${response.status}`
+      );
+    }
+
+    const result = await response.json();
+    return result.data;
   } catch (error) {
     console.error("Error fetching venues:", error);
     return [];

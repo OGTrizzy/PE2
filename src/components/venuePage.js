@@ -28,6 +28,7 @@ function VenuePage() {
   const [venue, setVenue] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selectedDates, setSelectedDates] = useState({
     dateFrom: null,
     dateTo: null,
@@ -44,6 +45,14 @@ function VenuePage() {
   const calendarRef = useRef(null);
 
   useEffect(() => {
+    // Validate the ID before fetching
+    if (!id || id === "undefined") {
+      setError("Invalid venue ID.");
+      setLoading(false);
+      setTimeout(() => navigate("/"), 2000);
+      return;
+    }
+
     // fetch venue and bookings when page loads
     const getVenueAndBookings = async () => {
       setLoading(true);
@@ -53,12 +62,14 @@ function VenuePage() {
         setBookings(venueData.bookings || []);
       } catch (error) {
         console.error("Error fetching venue or bookings:", error);
+        setError("Failed to load venue. Redirecting to homepage...");
+        setTimeout(() => navigate("/"), 2000);
       } finally {
         setLoading(false);
       }
     };
     getVenueAndBookings();
-  }, [id]);
+  }, [id, navigate]);
 
   // handle date selection on calendar
   const handleDateClick = (arg) => {
@@ -207,6 +218,20 @@ function VenuePage() {
     );
   }
 
+  if (error) {
+    return (
+      <div style={{ minHeight: "100vh", backgroundColor: "#F5F5F5" }}>
+        <Header />
+        <p
+          className="text-center alert alert-danger"
+          style={{ fontFamily: "Open Sans, sans-serif", color: "#333333" }}
+        >
+          {error}
+        </p>
+      </div>
+    );
+  }
+
   if (!venue) {
     return (
       <div style={{ minHeight: "100vh", backgroundColor: "#F5F5F5" }}>
@@ -245,7 +270,6 @@ function VenuePage() {
                         className="d-block w-100 rounded"
                         style={{ height: "384px", objectFit: "cover" }}
                         onError={(e) => {
-                          console.log(`Failed to load image: ${imageObj.url}`);
                           e.target.src =
                             "https://images.unsplash.com/photo-1605537473964-8d8a2673ff7b?q=80&w=1936&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
                         }}

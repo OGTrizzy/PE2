@@ -10,14 +10,6 @@ import {
 } from "../api/auth";
 import Header from "../components/header.js";
 
-// helper function to calculate total price for a booking
-const calculateTotalPrice = (booking, venuePrice) => {
-  const dateFrom = new Date(booking.dateFrom);
-  const dateTo = new Date(booking.dateTo);
-  const nights = Math.ceil((dateTo - dateFrom) / (1000 * 60 * 60 * 24));
-  return nights * venuePrice;
-};
-
 function ProfilePage() {
   const { user: contextUser } = useContext(AuthContext);
   const [profileData, setProfileData] = useState(null);
@@ -32,7 +24,6 @@ function ProfilePage() {
   });
   const [upcomingBookings, setUpcomingBookings] = useState([]);
 
-  // load user from localstorage on mount
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
@@ -51,10 +42,11 @@ function ProfilePage() {
     }
   }, []);
 
-  // load profile data and bookings
   useEffect(() => {
     const loadProfileAndBookings = async () => {
-      if (!localUser) return;
+      if (!localUser) {
+        return;
+      }
 
       setLoading(true);
       try {
@@ -67,7 +59,7 @@ function ProfilePage() {
           return;
         }
 
-        // fetch user profile data
+        // get userdata
         const data = await fetchProfile(name, token);
         setProfileData(
           data || { bookings: [], venues: [], avatar: {}, bio: "" }
@@ -80,13 +72,15 @@ function ProfilePage() {
           data.venueManager || localUser?.venueManager || false
         );
 
-        // fetch bookings for venue managers only
+        // get booking for every venues (only for managers)
         if (isVenueManager) {
           const venueBookings = await Promise.all(
             (data.venues || []).map(async (venue) => {
               try {
+                // get venue with bookings to get booking id
                 const venueData = await fetchVenueById(venue.id);
 
+                // get details of every booking
                 const bookings = await Promise.all(
                   (venueData.bookings || []).map(async (booking) => {
                     try {
@@ -142,7 +136,6 @@ function ProfilePage() {
     }
   }, [localUser, isVenueManager]);
 
-  // handle form input changes for editing profile
   const handleEditChange = (e) => {
     const { name, value } = e.target;
     if (name === "avatar") {
@@ -158,7 +151,6 @@ function ProfilePage() {
     }
   };
 
-  // handle profile update submission
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -186,7 +178,6 @@ function ProfilePage() {
     }
   };
 
-  // handle venue deletion
   const handleDeleteVenue = async (venueId) => {
     if (!window.confirm("Are you sure you want to delete this venue?")) {
       return;
@@ -199,7 +190,7 @@ function ProfilePage() {
         return;
       }
 
-      const result = await deleteVenue(venueId);
+      const result = await deleteVenue(venueId, token);
       if (result.success) {
         setProfileData((prevData) => ({
           ...prevData,
@@ -215,7 +206,13 @@ function ProfilePage() {
     }
   };
 
-  // loading state
+  const calculateTotalPrice = (booking, venuePrice) => {
+    const dateFrom = new Date(booking.dateFrom);
+    const dateTo = new Date(booking.dateTo);
+    const nights = Math.ceil((dateTo - dateFrom) / (1000 * 60 * 60 * 24));
+    return nights * venuePrice;
+  };
+
   if (loading) {
     return (
       <div style={{ minHeight: "100vh", backgroundColor: "#F5F5F5" }}>
@@ -230,7 +227,6 @@ function ProfilePage() {
     );
   }
 
-  // error state
   if (error || !profileData) {
     return (
       <div style={{ minHeight: "100vh", backgroundColor: "#F5F5F5" }}>
@@ -418,7 +414,7 @@ function ProfilePage() {
         </div>
 
         <div className="d-flex gap-4 flex-wrap">
-          {/* my bookings section */}
+          {/* booking section */}
           <div
             className="flex-grow-1"
             style={{ minWidth: "300px", maxWidth: "33%" }}
@@ -510,7 +506,7 @@ function ProfilePage() {
             )}
           </div>
 
-          {/* my venues section for managers */}
+          {/* venues section (for managers) */}
           {isVenueManager && (
             <div
               className="flex-grow-1"
@@ -635,7 +631,7 @@ function ProfilePage() {
             </div>
           )}
 
-          {/* upcoming bookings for managers */}
+          {/* upcoming bookings for my menues for managers only */}
           {isVenueManager && (
             <div
               className="flex-grow-1"
